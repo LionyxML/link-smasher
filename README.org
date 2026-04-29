@@ -1,0 +1,34 @@
+* Link-Smasher
+
+A self hosted "link shortner" app written in Common LISP (sbcl).
+
+** Tech stack
+- SBCL (Stell Bank Common Lisp)
+  - Hunchentoot
+  - Easy-Routes
+  - Djula
+- Single sqlite3 database
+
+** Pre-Install
+
+Choose one of the below.
+
+*** The quicklisp way
+
+Automatically installs everything and loads project.
+
+#+BEGIN_SRC lisp
+(load "~/quicklisp/setup.lisp")
+(pushnew (uiop:getcwd) ql:*local-project-directories*)
+(ql:quickload :link-smasher)
+#+END_SRC
+
+*** The asdf way
+
+Load the project if all dependencies are met. If not,
+errors. Quicklisp invocations here must be manual.
+
+#+BEGIN_SRC lisp
+(pushnew (uiop:getcwd) asdf:*central-registry*)
+(asdf:load-system :link-smasher)
+#+END_SRC
