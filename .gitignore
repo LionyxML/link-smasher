@@ -1,0 +1,55 @@
+# Compiled Lisp files
+*.fasl
+*.fas
+*.fsl
+*.pfsl
+*.dfsl
+*.ifsl
+*.ufsl
+*.cfsl
+
+# Implementation-specific compiled files
+*.x86f
+*.sparcf
+*.axpf
+*.hpf
+*.sgf
+*.lx32fsl
+*.lx64fsl
+*.dx32fsl
+*.dx64fsl
+*.wx32fsl
+*.wx64fsl
+*.fx32fsl
+*.fx64fsl
+*.abcl
+
+# Object files
+*.o
+*.so
+*.dylib
+*.dll
+*.lib
+
+# ASDF cache
+.cache/
+**/.cache/
+
+# Build output
+link-smasher
+
+# Database
+*.sqlite3
+*.sqlite
+*.db
+
+# Editor/IDE
+*~
+\#*\#
+.#*
+*.swp
+*.swo
+.DS_Store
+
+# Misc
+system-index.txt

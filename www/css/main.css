@@ -1,0 +1,14 @@
+body {
+  margin: auto;
+  width: 80vw;
+  background-color: #181a1b;
+  color: #e8e6e3;
+}
+
+a,
+a:link,
+a:visited,
+a:hover,
+a:active {
+  color: #3491ff;
+}

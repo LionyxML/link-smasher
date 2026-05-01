@@ -1,0 +1,14 @@
+{% extends "layout.html" %} {% block content %}
+
+<h2>Last URLs Smashed</h2>
+
+<ul>
+  {% for link in all-links %}
+  <li>
+    <a href="/r/{{ link.short_code }}"> {{ link.original_url }} </a>
+    ({{ link.short_code }})
+  </li>
+  {% endfor %}
+</ul>
+
+{% endblock %}

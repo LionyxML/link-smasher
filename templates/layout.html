@@ -1,0 +1,29 @@
+<!doctype html>
+<html>
+  <head>
+    <link rel="stylesheet" href="/css/reset.css" />
+    <link rel="stylesheet" href="/css/main.css" />
+    {% if secs %}<meta http-equiv="refresh" content="{{ secs }};url={{ long }}" />{% endif %}
+
+    <title>{{ title }}</title>
+  </head>
+
+  <body class="container">
+    <header>
+      <h1>{{ title }}</h1>
+      <hr />
+      <nav>
+        <a href="/">Home</a> - <a href="/register">Register Link</a> -
+        <a href="/list">Links List</a>
+      </nav>
+      <hr />
+    </header>
+
+    <main>{% block content %} {% endblock %}</main>
+
+    <footer>
+      <hr />
+      <small> {{ title }} - v{{ version }}</small>
+    </footer>
+  </body>
+</html>

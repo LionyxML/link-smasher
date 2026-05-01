@@ -1,0 +1,14 @@
+{% extends "layout.html" %} {% block content %}
+
+<h2>Register Link</h2>
+
+<p>Add the URL you would like to shorten:</p>
+
+{% if error %}<p style="color:red;">{{ error }}</p>{% endif %}
+
+<form method="POST" action="/register">
+  <input type="text" name="url" />
+  <button type="submit">Shorten</button>
+</form>
+
+{% endblock %}
