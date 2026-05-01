@@ -4,13 +4,17 @@ A self-hosted URL shortener written in Common Lisp (SBCL). Paste a long URL,
 get a short link back. Visitors are automatically redirected after a configurable
 delay.
 
+** Screenshot
+
+[[file:docs/screenshot.png]]
+
 ** Tech Stack
 
 - SBCL (Steel Bank Common Lisp)
-  - Hunchentoot — web server
-  - Easy-Routes — routing
-  - Djula — HTML templates
-- SQLite3 — single-file database
+  - Hunchentoot: web server
+  - Easy-Routes: routing
+  - Djula: HTML templates
+- SQLite3: single-file database
 
 ** Pre-Install
 
@@ -99,5 +103,5 @@ PORT=3800 DB=db.sqlite3 BASE_URL=http://localhost:3800/ SECONDS=3 ./link-smasher
 1. Open =http://localhost:3800/= in your browser.
 2. Go to *Register Link* and paste a URL.
 3. Copy the short link from the result page.
-4. Share it — visitors will be redirected to the original URL after the configured delay.
+4. Share it: visitors will be redirected to the original URL after the configured delay.
 5. View all registered links at =/list=.
