@@ -75,14 +75,16 @@ PORT=3800 DB=db.sqlite3 BASE_URL=http://localhost:3800/ SECONDS=3 ./link-smasher
 
 ** CLI Options
 
-| Flag          | Env var  | Default                | Description                      |
-|---------------+----------+------------------------+----------------------------------|
-| =-p=, =--port=    | =PORT=     | =3800=                   | Web server port                  |
-| =-d=, =--db=      | =DB=       | =db.sqlite3=             | Path to SQLite database file     |
-| =-b=, =--base=    | =BASE_URL= | =http://localhost:3800/= | Base URL used in generated links |
-| =-s=, =--seconds= | =SECONDS=  | =3=                      | Seconds before redirect          |
-| =-h=, =--help=    |          |                        | Show help                        |
-| =-v=, =--version= |          |                        | Show version                     |
+| Flag          | Env var        | Default                | Description                                                 |
+|---------------+----------------+------------------------+-------------------------------------------------------------|
+| =-p=, =--port=    | =PORT=           | =3800=                   | Web server port                                             |
+| =-d=, =--db=      | =DB=             | =db.sqlite3=             | Path to SQLite database file                                |
+| =-b=, =--base=    | =BASE_URL=       | =http://localhost:3800/= | Base URL used in generated links                            |
+| =-s=, =--seconds= | =SECONDS=        | =3=                      | Seconds before redirect                                     |
+| =-h=, =--help=    |                |                        | Show help                                                   |
+| =-v=, =--version= |                |                        | Show version                                                |
+|               | =ADMIN_USER=     | =admin=                  | Username for the protected =/list= page                       |
+|               | =ADMIN_PASSWORD= | (unset)                | Password for =/list= (env only). If unset, =/list= stays closed |
 
 ** Make Targets
 
@@ -104,4 +106,22 @@ PORT=3800 DB=db.sqlite3 BASE_URL=http://localhost:3800/ SECONDS=3 ./link-smasher
 2. Go to *Register Link* and paste a URL.
 3. Copy the short link from the result page.
 4. Share it: visitors will be redirected to the original URL after the configured delay.
-5. View all registered links at =/list=.
+5. View all registered links at =/list= (admin only, see below).
+
+** Admin: the =/list= page
+
+=/list= shows every registered link, so it is protected with HTTP Basic Auth and
+is *not* public. Set the credentials via environment variables before starting:
+
+#+BEGIN_SRC sh
+ADMIN_USER=admin ADMIN_PASSWORD=change-me ./link-smasher --port 3800
+#+END_SRC
+
+- =ADMIN_USER= defaults to =admin=; =ADMIN_PASSWORD= has no default.
+- *Fail-closed:* if =ADMIN_PASSWORD= is unset (or empty), =/list= returns =401= for
+  everyone — it never opens accidentally.
+- Basic Auth has no logout; the browser caches the credentials until it is closed.
+
+*Security note:* Basic Auth sends the credentials base64-encoded, *not* encrypted.
+Only expose this over *HTTPS* (e.g. behind a TLS-terminating reverse proxy such as
+nginx or Caddy). Over plain HTTP the admin password travels in the clear.

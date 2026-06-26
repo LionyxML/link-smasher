@@ -65,7 +65,10 @@
                                  "http://localhost:3800/"))
                    (seconds  (or (option-value :seconds data)
                                  (uiop:getenv "SECONDS")
-                                 3)))
+                                 3))
+                   (admin-user (or (uiop:getenv "ADMIN_USER")
+                                   "admin"))
+                   (admin-password (uiop:getenv "ADMIN_PASSWORD")))
 
                (print-banner port db base-url)
 
@@ -77,18 +80,20 @@
                (link-smasher.webserver:start-server
                 :port port
                 :base-url base-url
-                :seconds seconds)
+                :seconds seconds
+                :admin-user admin-user
+                :admin-password admin-password)
 
                ;; Block main thread until signal received
                (let ((shutdown (sb-thread:make-semaphore :name "shutdown")))
                  (sb-sys:enable-interrupt sb-unix:sigterm
-                   (lambda (sig info ctx)
-                     (declare (ignore sig info ctx))
-                     (sb-thread:signal-semaphore shutdown)))
+                                          (lambda (sig info ctx)
+                                            (declare (ignore sig info ctx))
+                                            (sb-thread:signal-semaphore shutdown)))
                  (sb-sys:enable-interrupt sb-unix:sigint
-                   (lambda (sig info ctx)
-                     (declare (ignore sig info ctx))
-                     (sb-thread:signal-semaphore shutdown)))
+                                          (lambda (sig info ctx)
+                                            (declare (ignore sig info ctx))
+                                            (sb-thread:signal-semaphore shutdown)))
                  (sb-thread:wait-on-semaphore shutdown))
 
                ;; Ordered shutdown

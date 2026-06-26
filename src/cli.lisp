@@ -46,6 +46,11 @@ Options:
   -s, --seconds   Seconds before redirect
   -v, --version   Show version
 
+Environment (env-only):
+  ADMIN_USER      Username for the protected /list page (default: admin)
+  ADMIN_PASSWORD  Password for /list. If unset, /list stays closed (401).
+                  Basic Auth is unencrypted; serve it only behind HTTPS.
+
 "
           (app-prop :name)
           (app-prop :version)
