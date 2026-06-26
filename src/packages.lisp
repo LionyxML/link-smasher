@@ -13,7 +13,8 @@
 
 (defpackage #:link-smasher.utils
   (:use #:cl)
-  (:export #:encode-base62))
+  (:export #:encode-base62
+           #:random-base62))
 
 (defpackage #:link-smasher.webserver
   (:use #:cl)
@@ -28,7 +29,6 @@
    #:disconnect
    #:reset-schema
    #:ensure-schema
-   #:insert-url
    #:find-all-links
    #:find-by-id
    #:find-by-short-code

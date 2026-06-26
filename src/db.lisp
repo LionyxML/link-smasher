@@ -40,24 +40,6 @@ CREATE TABLE links (
     (reset-schema)))
 
 
-;;; Core insert
-(defun insert-url (url)
-  (dbi:do-sql *connection*
-    "INSERT INTO links (original_url) VALUES (?)"
-    (list url)))
-
-
-;;; Last insert id
-(defun last-insert-id ()
-  (getf (first
-         (dbi:fetch-all
-          (dbi:execute
-           (dbi:prepare *connection*
-                        "SELECT last_insert_rowid() AS id")
-           nil)))
-        :|id|))
-
-
 ;;; Helpers
 (defun find-by-id (id)
   (dbi:fetch-all
@@ -86,21 +68,25 @@ CREATE TABLE links (
     (dbi:prepare *connection*
                  "SELECT * FROM links ORDER BY id DESC LIMIT 50"))))
 
-(defun create-link (url)
-  ;; 1. insert row
-  (insert-url url)
-
-  ;; 2. get numeric id
-  (let* ((id (last-insert-id))
-         (short (link-smasher.utils:encode-base62 id)))
-
-    ;; 3. store short code
-    (dbi:do-sql *connection*
-      "UPDATE links SET short_code = ? WHERE id = ?"
-      (list short id))
-
-    ;; 4. return short code
-    short))
+(defun create-link (url &key (max-tries 5))
+  "Insert URL with a random, unpredictable short code.
+The short_code column is UNIQUE; on collision we retry with a fresh code.
+The numeric id stays internal and is never exposed, so codes are not
+enumerable."
+  (loop repeat max-tries
+        for short = (link-smasher.utils:random-base62)
+        do (handler-case
+               (progn
+                 (dbi:do-sql *connection*
+                   "INSERT INTO links (original_url, short_code) VALUES (?, ?)"
+                   (list url short))
+                 (return short))
+             (dbi:<dbi-database-error> ()
+               ;; UNIQUE collision on short_code -> loop and try a new code
+               nil))
+        finally
+        (error "Could not generate a unique short code after ~A tries"
+               max-tries)))
 
 (defun get-original-link (short)
   (getf (first (find-by-short-code short))
