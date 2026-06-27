@@ -1,8 +1,8 @@
 * Link-Smasher
 
 A self-hosted URL shortener written in Common Lisp (SBCL). Paste a long URL,
-get a short link back. Visitors are automatically redirected after a configurable
-delay.
+get a short link back. By default visitors land on a click-through page that shows
+the destination before they continue; auto-redirect is opt-in (see =--direct=).
 
 ** Screenshot
 
@@ -75,16 +75,17 @@ PORT=3800 DB=db.sqlite3 BASE_URL=http://localhost:3800/ SECONDS=3 ./link-smasher
 
 ** CLI Options
 
-| Flag          | Env var        | Default                | Description                                                 |
-|---------------+----------------+------------------------+-------------------------------------------------------------|
-| =-p=, =--port=    | =PORT=           | =3800=                   | Web server port                                             |
-| =-d=, =--db=      | =DB=             | =db.sqlite3=             | Path to SQLite database file                                |
-| =-b=, =--base=    | =BASE_URL=       | =http://localhost:3800/= | Base URL used in generated links                            |
-| =-s=, =--seconds= | =SECONDS=        | =3=                      | Seconds before redirect                                     |
-| =-h=, =--help=    |                |                        | Show help                                                   |
-| =-v=, =--version= |                |                        | Show version                                                |
-|               | =ADMIN_USER=     | =admin=                  | Username for the protected =/list= page                       |
-|               | =ADMIN_PASSWORD= | (unset)                | Password for =/list= (env only). If unset, =/list= stays closed |
+| Flag          | Env var         | Default                | Description                                                 |
+|---------------+-----------------+------------------------+-------------------------------------------------------------|
+| =-p=, =--port=    | =PORT=            | =3800=                   | Web server port                                             |
+| =-d=, =--db=      | =DB=              | =db.sqlite3=             | Path to SQLite database file                                |
+| =-b=, =--base=    | =BASE_URL=        | =http://localhost:3800/= | Base URL used in generated links                            |
+| =-s=, =--seconds= | =SECONDS=         | =3=                      | Seconds before redirect (only in =--direct= mode)             |
+| =--direct=      | =DIRECT_REDIRECT= | (off)                  | Auto-redirect on =/r/= instead of the click-through page      |
+| =-h=, =--help=    |                 |                        | Show help                                                   |
+| =-v=, =--version= |                 |                        | Show version                                                |
+|               | =ADMIN_USER=      | =admin=                  | Username for the protected =/list= page                       |
+|               | =ADMIN_PASSWORD=  | (unset)                | Password for =/list= (env only). If unset, =/list= stays closed |
 
 ** Make Targets
 
@@ -105,8 +106,24 @@ PORT=3800 DB=db.sqlite3 BASE_URL=http://localhost:3800/ SECONDS=3 ./link-smasher
 1. Open =http://localhost:3800/= in your browser.
 2. Go to *Register Link* and paste a URL.
 3. Copy the short link from the result page.
-4. Share it: visitors will be redirected to the original URL after the configured delay.
+4. Share it: visitors see a click-through page showing the destination, then continue.
 5. View all registered links at =/list= (admin only, see below).
+
+** Redirect behavior & URL safety
+
+By *default* =/r/<code>= shows a click-through interstitial: it displays the full
+destination URL and the visitor must click to continue. This keeps the shortener
+from being used as a silent open-redirect for phishing.
+
+To restore automatic redirection, run with =--direct= (or =DIRECT_REDIRECT=1=). In
+that mode =/r/<code>= auto-redirects via meta-refresh after =--seconds= (use
+=--seconds 0= for an instant redirect).
+
+Submitted URLs are validated: only public =http://= / =https://= addresses are
+accepted. Non-http(s) schemes, URLs with embedded credentials (=user:pass@host=),
+and private/loopback/link-local hosts (=localhost=, =127.0.0.0/8=, =10.0.0.0/8=,
+=172.16.0.0/12=, =192.168.0.0/16=, =169.254.0.0/16=, IPv6 =::1=/ULA/link-local) are
+rejected.
 
 ** Admin: the =/list= page
 
@@ -119,7 +136,7 @@ ADMIN_USER=admin ADMIN_PASSWORD=change-me ./link-smasher --port 3800
 
 - =ADMIN_USER= defaults to =admin=; =ADMIN_PASSWORD= has no default.
 - *Fail-closed:* if =ADMIN_PASSWORD= is unset (or empty), =/list= returns =401= for
-  everyone — it never opens accidentally.
+  everyone. It never opens accidentally.
 - Basic Auth has no logout; the browser caches the credentials until it is closed.
 
 *Security note:* Basic Auth sends the credentials base64-encoded, *not* encrypted.

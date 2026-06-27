@@ -17,6 +17,10 @@
   "Password required to access the admin-only routes.
 When NIL or empty, admin routes are closed (fail-closed).")
 
+(defvar *direct-redirect* nil
+  "When true, /r/:short auto-redirects (meta-refresh, honoring *seconds*).
+When NIL (default), the visitor sees the destination and must click through.")
+
 ;; Parameters
 (defparameter *www-directory*
   (asdf:system-relative-pathname
@@ -41,10 +45,65 @@ When NIL or empty, admin routes are closed (fail-closed).")
    :version (getf link-smasher:*app* :version)
    args))
 
-(defun valid-url-p (url)
+(defun parse-ipv4-octets (host)
+  "Return a list of 4 integers if HOST is a dotted-quad IPv4 literal, else NIL."
+  (let ((parts (uiop:split-string host :separator ".")))
+    (when (= (length parts) 4)
+      (handler-case
+          (let ((octets (mapcar (lambda (p)
+                                  (multiple-value-bind (n end)
+                                      (parse-integer p :junk-allowed nil)
+                                    (declare (ignore end))
+                                    n))
+                                parts)))
+            (when (every (lambda (o) (<= 0 o 255)) octets)
+              octets))
+        (error () nil)))))
+
+(defun private-or-local-host-p (host)
+  "True when HOST is a loopback / private / link-local target that should not
+be shortened (anti-abuse / anti-SSRF). Covers localhost, the IPv4 private
+and link-local ranges, and common IPv6 loopback/ULA/link-local literals."
+  (when (stringp host)
+    (let* ((h (string-downcase (string-trim "[]" host)))
+           (octets (parse-ipv4-octets h)))
+      (cond
+        ((string= h "localhost") t)
+        (octets
+         (destructuring-bind (a b &rest rest) octets
+           (declare (ignore rest))
+           (or (= a 0)                       ; 0.0.0.0/8
+               (= a 127)                     ; loopback
+               (= a 10)                      ; private
+               (and (= a 172) (<= 16 b 31))  ; private
+               (and (= a 192) (= b 168))     ; private
+               (and (= a 169) (= b 254)))))  ; link-local
+        ;; IPv6 literals
+        ((string= h "::1") t)                ; loopback
+        ((or (uiop:string-prefix-p "fc" h)   ; fc00::/7 (ULA)
+             (uiop:string-prefix-p "fd" h)) t)
+        ((or (uiop:string-prefix-p "fe8" h)  ; fe80::/10 (link-local)
+             (uiop:string-prefix-p "fe9" h)
+             (uiop:string-prefix-p "fea" h)
+             (uiop:string-prefix-p "feb" h)) t)
+        (t nil)))))
+
+(defun safe-redirect-url-p (url)
+  "True when URL is a public http(s) address safe to store and redirect to.
+Rejects non-http(s) schemes, missing host, embedded credentials
+(user:pass@host), and private/loopback/link-local hosts."
   (and (stringp url)
-       (or (uiop:string-prefix-p "http://" url)
-           (uiop:string-prefix-p "https://" url))))
+       (handler-case
+           (let* ((u (quri:uri url))
+                  (scheme (quri:uri-scheme u))
+                  (host (quri:uri-host u))
+                  (userinfo (quri:uri-userinfo u)))
+             (and (member scheme '("http" "https") :test #'string-equal)
+                  host
+                  (plusp (length host))
+                  (null userinfo)
+                  (not (private-or-local-host-p host))))
+         (error () nil))))
 
 (defun constant-time-string= (a b)
   "Compare two strings in time independent of where they first differ.
@@ -80,11 +139,12 @@ Calls NEXT when authorized, otherwise responds 401 with WWW-Authenticate."
 
 (easy-routes:defroute register-submit ("/register" :method :post) ()
                       (let ((url (hunchentoot:parameter "url")))
-                        (if (valid-url-p url)
+                        (if (safe-redirect-url-p url)
                             (let ((short (format nil "~Ar/~A" *base-url*
                                                  (link-smasher.db:create-link url))))
                               (render "result.html" :short short))
-                            (render "register.html" :error "URL must start with http:// or https://"))))
+                            (render "register.html"
+                                    :error "URL is not allowed. Must be a public http:// or https:// address."))))
 
 (easy-routes:defroute register-page ("/register" :method :get) ()
                       (render "register.html"))
@@ -95,10 +155,19 @@ Calls NEXT when authorized, otherwise responds 401 with WWW-Authenticate."
 
 (easy-routes:defroute redirect ("/r/:short") (&path (short 'string))
                       (let ((long (link-smasher.db:get-original-link short)))
-                        (render "redirect.html" :long long :secs *seconds*)))
+                        (cond
+                          ((null long)
+                           (setf (hunchentoot:return-code*)
+                                 hunchentoot:+http-not-found+)
+                           (render "not-found.html"))
+                          (*direct-redirect*
+                           (render "redirect.html" :long long :secs *seconds* :auto t))
+                          (t
+                           (render "redirect.html" :long long :auto nil)))))
 
 ;;; Server
-(defun start-server (&key port base-url seconds admin-user admin-password)
+(defun start-server (&key port base-url seconds admin-user admin-password
+                          direct-redirect)
   (let ((port (etypecase port
                 (integer port)
                 (string (parse-integer port))))
@@ -111,6 +180,7 @@ Calls NEXT when authorized, otherwise responds 401 with WWW-Authenticate."
     (when admin-user
       (setf *admin-user* admin-user))
     (setf *admin-password* admin-password)
+    (setf *direct-redirect* direct-redirect)
 
     (format t "~&Starting the web server on port ~a~&" port)
     (force-output)

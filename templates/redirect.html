@@ -1,5 +1,7 @@
 {% extends "layout.html" %} {% block content %}
 
+{% if auto %}
+
 <h2>Redirecting...</h2>
 
 <p>You will be redirected in {{ secs }} seconds.</p>
@@ -8,5 +10,19 @@
   If it doesn’t happen automatically,
   <a href="{{ long }}">click here</a>.
 </p>
+
+{% else %}
+
+<h2>You are about to leave</h2>
+
+<p>This short link points to:</p>
+
+<p><strong><a href="{{ long }}" rel="noopener noreferrer nofollow">{{ long }}</a></strong></p>
+
+<p>Check the address above, then continue if you trust it.</p>
+
+<p><a href="{{ long }}" rel="noopener noreferrer nofollow">Continue →</a></p>
+
+{% endif %}
 
 {% endblock %}

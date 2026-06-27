@@ -9,6 +9,7 @@
     ("--base"    . :base-url)
     ("-s"        . :seconds)
     ("--seconds" . :seconds)
+    ("--direct"  . :direct)
     ("-h"        . :help)
     ("--help"    . :help)
     ("-v"        . :version)
@@ -44,12 +45,15 @@ Options:
   -h, --help      Show help
   -p, --port      Set web server port
   -s, --seconds   Seconds before redirect
+      --direct    Auto-redirect on /r/ (meta-refresh, honors --seconds).
+                  Default is a safe click-through interstitial.
   -v, --version   Show version
 
 Environment (env-only):
   ADMIN_USER      Username for the protected /list page (default: admin)
   ADMIN_PASSWORD  Password for /list. If unset, /list stays closed (401).
                   Basic Auth is unencrypted; serve it only behind HTTPS.
+  DIRECT_REDIRECT Same as --direct when set to 1/true/yes/on.
 
 "
           (app-prop :name)
@@ -72,6 +76,9 @@ Environment (env-only):
                (:version
                 (return-from parse-args
                   (values :version nil)))
+
+               (:direct
+                (push (cons :direct t) result))
 
                ((:port :db :base-url :seconds)
                 (if args

@@ -9,6 +9,13 @@
 (defun option-value (key options)
   (cdr (assoc key options)))
 
+(defun env-truthy-p (name)
+  "True when environment variable NAME is set to a truthy string."
+  (let ((v (uiop:getenv name)))
+    (and v (member (string-downcase v)
+                   '("1" "true" "yes" "on")
+                   :test #'string=))))
+
 (defun print-banner (port db base-url)
   (format t "
 >>>                      Ready to SMASH!
@@ -68,7 +75,9 @@
                                  3))
                    (admin-user (or (uiop:getenv "ADMIN_USER")
                                    "admin"))
-                   (admin-password (uiop:getenv "ADMIN_PASSWORD")))
+                   (admin-password (uiop:getenv "ADMIN_PASSWORD"))
+                   (direct-redirect (or (option-value :direct data)
+                                        (env-truthy-p "DIRECT_REDIRECT"))))
 
                (print-banner port db base-url)
 
@@ -82,7 +91,8 @@
                 :base-url base-url
                 :seconds seconds
                 :admin-user admin-user
-                :admin-password admin-password)
+                :admin-password admin-password
+                :direct-redirect direct-redirect)
 
                ;; Block main thread until signal received
                (let ((shutdown (sb-thread:make-semaphore :name "shutdown")))
