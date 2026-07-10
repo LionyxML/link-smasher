@@ -1,12 +1,31 @@
 * Link-Smasher
 
-A self-hosted URL shortener written in Common Lisp (SBCL). Paste a long URL,
-get a short link back. By default visitors land on a click-through page that shows
-the destination before they continue; auto-redirect is opt-in (see =--direct=).
+A self-hosted URL shortener written in Common Lisp (SBCL). Paste a
+long URL and get a short link back. By default, visitors land on a
+click-through page that shows the destination before they continue;
+automatic redirect is opt-in (see =--direct=).
+
+The project is built to be safe to expose publicly: short codes are
+random and non-enumerable, the admin listing is behind auth, submitted
+URLs are validated, and the write endpoint is rate limited.
 
 ** Screenshot
 
 [[file:docs/screenshot.png]]
+
+** Features
+
+- Random, non-enumerable short codes (no sequential IDs to scrape).
+- Safe-by-default redirects: a click-through interstitial that shows
+  the real destination, with opt-in auto-redirect.
+- URL validation that rejects non-HTTP(S) schemes, embedded
+  credentials, and private/loopback/link-local hosts.
+- Per-IP rate limiting and a request body-size cap on the write
+  endpoint.
+- Admin-only =/list= page protected with HTTP Basic Auth (fail-closed).
+- Single-file SQLite storage, created automatically on first run.
+- One-command HTTPS deployment behind Caddy (automatic Let's Encrypt
+  certs).
 
 ** Tech Stack
 
@@ -14,18 +33,43 @@ the destination before they continue; auto-redirect is opt-in (see =--direct=).
   - Hunchentoot: web server
   - Easy-Routes: routing
   - Djula: HTML templates
+  - quri: URL parsing and validation
+  - cl-dbi + dbd-sqlite3: database access
 - SQLite3: single-file database
 
-** Pre-Install
+** Requirements
+
+To run from source or build the binary:
+
+- SBCL
+- Quicklisp (for fetching the Lisp dependencies)
+- SQLite3 shared library (=libsqlite3=)
+
+To run the containerized HTTPS stack instead, you only need Podman (or
+Docker) with Compose. Nothing else is installed on the host.
+
+** Quick start
+
+Fastest path, plain HTTP on port 3800:
+
+#+BEGIN_SRC sh
+  make run
+#+END_SRC
+
+Then open =http://localhost:3800/=, go to *Register Link*, and paste a
+URL.
+
+For an HTTPS deployment, jump to [[*Running with HTTPS (Podman / Docker + Caddy)][Running with HTTPS]].
+
+** Load in a REPL
 
 *** The Quicklisp way
 
 Automatically installs all dependencies and loads the project.
 
 #+BEGIN_SRC lisp
-(load "~/quicklisp/setup.lisp")
-(pushnew (uiop:getcwd) ql:*local-project-directories*)
-(ql:quickload :link-smasher)
+  (load "~/quicklisp/setup.lisp") (pushnew (uiop:getcwd)
+  ql:*local-project-directories*) (ql:quickload :link-smasher)
 #+END_SRC
 
 *** The ASDF way
@@ -33,8 +77,8 @@ Automatically installs all dependencies and loads the project.
 Load the project assuming all dependencies are already installed.
 
 #+BEGIN_SRC lisp
-(pushnew (uiop:getcwd) asdf:*central-registry*)
-(asdf:load-system :link-smasher)
+  (pushnew (uiop:getcwd) asdf:*central-registry*) (asdf:load-system
+  :link-smasher)
 #+END_SRC
 
 ** Building
@@ -42,120 +86,175 @@ Load the project assuming all dependencies are already installed.
 Build a standalone executable:
 
 #+BEGIN_SRC sh
-make build
+  make build
 #+END_SRC
+
+This produces a =link-smasher= binary in the project root via
+=sb-ext:save-lisp-and-die=. The binary is self-contained but still reads
+the =templates/= and =www/= directories relative to where it was built, so
+keep it next to those directories (this is exactly what the container
+image does).
 
 ** Running locally (plain HTTP, via make)
 
-Quickest way to run the app directly, without a proxy or TLS — good for hacking on
-it. For HTTPS, see [[*Running with HTTPS (Podman / Docker + Caddy)][Running with HTTPS]] below.
+The quickest way to run the app directly, without a proxy or TLS. Good
+for hacking on it. For HTTPS, see [[*Running with HTTPS (Podman / Docker + Caddy)][Running with HTTPS]] below.
 
 *** From source (development)
 
 Requires Quicklisp.
 
 #+BEGIN_SRC sh
-make run
+  make run
 #+END_SRC
 
 *** From the built binary
 
 #+BEGIN_SRC sh
-make run-bin
+  make run-bin
 #+END_SRC
 
 *** Directly
 
 #+BEGIN_SRC sh
-./link-smasher --port 3800 --db db.sqlite3 --base http://localhost:3800/ --seconds 3
+  ./link-smasher --port 3800 --db db.sqlite3 --base
+  http://localhost:3800/ --seconds 3
 #+END_SRC
 
 Or via environment variables:
 
 #+BEGIN_SRC sh
-PORT=3800 DB=db.sqlite3 BASE_URL=http://localhost:3800/ SECONDS=3 ./link-smasher
+  PORT=3800 DB=db.sqlite3 BASE_URL=http://localhost:3800/ SECONDS=3
+  ./link-smasher
 #+END_SRC
 
 ** Running with HTTPS (Podman / Docker + Caddy)
 
-For anything public, run the app behind [[https://caddyserver.com/][Caddy]], which terminates TLS with
-*automatic HTTPS*: it fetches and renews a Let's Encrypt certificate for your domain
-and redirects HTTP to HTTPS. This also puts the admin Basic Auth (=/list=) safely
-behind TLS. The commands use =podman compose=; =docker compose= is identical.
+For anything public, run the app behind [[https://caddyserver.com/][Caddy]], which terminates TLS
+with *automatic HTTPS*: it fetches and renews a Let's Encrypt
+certificate for your domain and redirects HTTP to HTTPS. This also
+puts the admin Basic Auth (=/list=) safely behind TLS. The commands
+below use =podman compose=; =docker compose= is identical.
 
-First, the env file (shared by both modes below):
+The stack is two containers:
+
+- =app=: the shortener. It never binds a public port; it is only
+  reachable from Caddy on the internal network.
+- =caddy=: the public entry point on ports 80 and 443. It terminates TLS
+  and reverse-proxies to =app=.
+
+First, create the env file (shared by both modes below):
 
 #+BEGIN_SRC sh
-cp .env.example .env      # then edit it
+  cp .env.example .env # then edit it (see "Compose environment" below)
 #+END_SRC
 
 *** Development (local, unprivileged ports)
 
-The =docker-compose.dev.yml= overlay serves on *8080/8443* instead of 80/443 (no root
-needed, no clash with other services) and *forces =DOMAIN=localhost=* so Caddy uses
-its own internal CA instead of trying to get a real Let's Encrypt cert. So you don't
-even need to edit =DOMAIN= in =.env= for dev — just make sure =ADMIN_PASSWORD= is set:
+The =docker-compose.dev.yml= overlay serves on *8080/8443* instead of
+80/443 (no root needed, no clash with other services) and *forces
+=DOMAIN=localhost=* so Caddy uses its own internal CA instead of trying
+to get a real Let's Encrypt cert. You do not even need to edit =DOMAIN=
+in =.env= for dev; just make sure =ADMIN_PASSWORD= is set.
 
 #+BEGIN_SRC sh
-podman compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+  podman compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+  --build
 #+END_SRC
 
-Then open =https://localhost:8443/=. Caddy's internal-CA cert makes the browser warn
-(expected locally) — accept it, or use =curl -k=. Let's Encrypt does *not* work for
-=localhost=. Note: the HTTP→HTTPS redirect on =:8080= points at =:443= (Caddy can't see
-the port map), so in dev just hit =https://localhost:8443/= directly.
+Then open =https://localhost:8443/=. Caddy's internal-CA cert makes the
+browser warn (this is expected locally); accept it, or use =curl
+-k=. Let's Encrypt does *not* work for =localhost=.
+
+Note: the HTTP to HTTPS redirect on =:8080= points at =:443= (Caddy cannot
+see the host port mapping), so in dev just hit
+=https://localhost:8443/= directly.
 
 *** Production (real domain, ports 80/443)
 
-Point a real =DOMAIN= at the host with ports *80* and *443* reachable, and set
-=ACME_EMAIL= + a strong =ADMIN_PASSWORD= in =.env=. Then just the base file:
+Point a real =DOMAIN= at the host, with ports *80* and *443* reachable from
+the internet, and set =ACME_EMAIL= and a strong =ADMIN_PASSWORD= in
+=.env=. Then use the base file only:
 
 #+BEGIN_SRC sh
-podman compose up -d --build
+  podman compose up -d --build
 #+END_SRC
 
-Caddy obtains a real Let's Encrypt cert automatically. Browse =https://your.domain/=.
+Caddy obtains and renews a real Let's Encrypt cert
+automatically. Browse =https://your.domain/=.
+
+*** Compose environment
+
+These variables come from =.env= (see =.env.example=):
+
+| Variable          | Required    | Purpose                                                           |
+|-------------------+-------------+-------------------------------------------------------------------|
+| =DOMAIN=            | yes (prod)  | Public hostname Caddy serves. =localhost= in dev uses internal CA   |
+| =ACME_EMAIL=        | recommended | Email for the Let's Encrypt account (expiry notices)              |
+| =ADMIN_USER=        | no          | Admin username for =/list= (defaults to =admin=)                      |
+| =ADMIN_PASSWORD=    | yes         | Admin password for =/list=; the app refuses to be useful without it |
+| =RATE_LIMIT=        | no          | Set to =off= to disable rate limiting                               |
+| =RATE_LIMIT_MAX=    | no          | Requests per window per IP (default 10)                           |
+| =RATE_LIMIT_WINDOW= | no          | Window length in seconds (default 60)                             |
+| =MAX_BODY=          | no          | Max request body size in bytes (default 8192)                     |
+
+The compose file also sets =TRUST_PROXY=1= for the app so per-IP rate
+limiting keeps working behind Caddy (see [[*Rate limiting and body
+limits][Rate limiting and body limits]]).
 
 *** Everyday commands
 
 #+BEGIN_SRC sh
-podman compose ps                 # what's running
-podman compose logs -f caddy      # watch cert issuance / proxy logs
-podman compose up -d --build      # rebuild after code changes
-podman compose down               # stop (keeps db + certs in volumes)
-podman compose down -v            # stop AND wipe db + certs
+  podman compose ps # what's running podman compose logs -f caddy #
+  watch cert issuance / proxy logs podman compose up -d --build #
+  rebuild after code changes podman compose down # stop (keeps db +
+  certs in volumes) podman compose down -v # stop AND wipe db + certs
 #+END_SRC
 
-(For the dev overlay, repeat the =-f docker-compose.yml -f docker-compose.dev.yml=
-flags on =down= / =logs= too.)
+For the dev overlay, repeat the =-f docker-compose.yml -f
+docker-compose.dev.yml= flags on =down= and =logs= too.
 
-*** Notes
+*** Persistence
 
-- The app never binds a public port itself; only Caddy does. Requests reach the app
-  from Caddy, so the compose sets =TRUST_PROXY=1= to keep the per-IP rate limit
-  working off =X-Forwarded-For= (safe because Caddy sanitizes that header).
-- Certificates persist in the =caddy_data= volume across restarts; the SQLite
-  database persists in =app_data=.
-- =.env= is gitignored — keep real secrets out of git; =.env.example= is the template.
+- Certificates and the ACME account persist in the =caddy_data= volume,
+  so restarts do not re-issue certs (important to avoid Let's Encrypt
+  rate limits).
+- The SQLite database persists in the =app_data= volume, mounted at
+  =/data=.
+- =.env= is gitignored; keep real secrets out of git. =.env.example= is
+  the template.
 
-** CLI Options
+** Configuration
+
+Every setting can be given as a CLI flag or an environment
+variable. Precedence, highest first:
+
+1. CLI flag (for example =--port 9000=)
+2. Environment variable (for example =PORT=9000=)
+3. Built-in default
+
+Switches (=--direct=, =--trust-proxy=) are enabled by the flag, or by
+setting their env var to =1=/=true=/=yes=/=on=. Rate limiting is *on by
+default*; disable it with =--no-rate-limit= or =RATE_LIMIT=off=.
+
+*** Options reference
 
 | Flag                | Env var           | Default                | Description                                                 |
 |---------------------+-------------------+------------------------+-------------------------------------------------------------|
 | =-p=, =--port=          | =PORT=              | =3800=                   | Web server port                                             |
-| =-d=, =--db=            | =DB=                | =db.sqlite3=             | Path to SQLite database file                                |
-| =-b=, =--base=          | =BASE_URL=          | =http://localhost:3800/= | Base URL used in generated links                            |
-| =-s=, =--seconds=       | =SECONDS=           | =3=                      | Seconds before redirect (only in =--direct= mode)             |
-| =--direct=            | =DIRECT_REDIRECT=   | (off)                  | Auto-redirect on =/r/= instead of the click-through page      |
-| =--no-rate-limit=     | =RATE_LIMIT=        | (on)                   | Disable per-IP rate limiting (=RATE_LIMIT=off=)               |
-| =--rate-limit-max=    | =RATE_LIMIT_MAX=    | =10=                     | Max POST =/register= per IP per window                        |
-| =--rate-limit-window= | =RATE_LIMIT_WINDOW= | =60=                     | Rate-limit window, seconds                                  |
-| =--max-body=          | =MAX_BODY=          | =8192=                   | Max request body size, bytes (else =413=)                     |
-| =--trust-proxy=       | =TRUST_PROXY=       | (off)                  | Read client IP from =X-Forwarded-For= (only behind a proxy)   |
+| =-d=, =--db=            | =DB=                | =db.sqlite3=             | Path to the SQLite database file (created if missing)       |
+| =-b=, =--base=          | =BASE_URL=          | =http://localhost:3800/= | Base URL used to build the generated short links            |
+| =-s=, =--seconds=       | =SECONDS=           | =3=                      | Delay before redirect, only used in =--direct= mode           |
+| =--direct=            | =DIRECT_REDIRECT=   | off                    | Auto-redirect on =/r/= instead of the click-through page      |
+| =--no-rate-limit=     | =RATE_LIMIT=        | on                     | Disable per-IP rate limiting (=RATE_LIMIT=off= to disable)    |
+| =--rate-limit-max=    | =RATE_LIMIT_MAX=    | =10=                     | Max POST =/register= requests per IP per window               |
+| =--rate-limit-window= | =RATE_LIMIT_WINDOW= | =60=                     | Rate-limit window length, in seconds                        |
+| =--max-body=          | =MAX_BODY=          | =8192=                   | Max request body size in bytes; larger returns =413=          |
+| =--trust-proxy=       | =TRUST_PROXY=       | off                    | Take client IP from =X-Forwarded-For= (only behind a proxy)   |
 | =-h=, =--help=          |                   |                        | Show help                                                   |
 | =-v=, =--version=       |                   |                        | Show version                                                |
-|                     | =ADMIN_USER=        | =admin=                  | Username for the protected =/list= page                       |
-|                     | =ADMIN_PASSWORD=    | (unset)                | Password for =/list= (env only). If unset, =/list= stays closed |
+|                     | =ADMIN_USER=        | =admin=                  | Username for the protected =/list= page (env only)            |
+|                     | =ADMIN_PASSWORD=    | unset                  | Password for =/list= (env only); if unset, =/list= stays closed |
 
 ** Make Targets
 
@@ -173,42 +272,79 @@ flags on =down= / =logs= too.)
 
 ** Usage
 
-1. Open =http://localhost:3800/= in your browser.
+1. Open the app in your browser (=http://localhost:3800/= locally).
 2. Go to *Register Link* and paste a URL.
 3. Copy the short link from the result page.
-4. Share it: visitors see a click-through page showing the destination, then continue.
+4. Share it. Visitors see a click-through page showing the
+   destination, then continue.
 5. View all registered links at =/list= (admin only, see below).
 
-** Redirect behavior & URL safety
+** Redirect behavior and URL safety
 
-By *default* =/r/<code>= shows a click-through interstitial: it displays the full
-destination URL and the visitor must click to continue. This keeps the shortener
-from being used as a silent open-redirect for phishing.
+By *default*, =/r/<code>= shows a click-through interstitial: it displays
+the full destination URL and the visitor must click to continue. This
+keeps the shortener from being used as a silent open-redirect for
+phishing.
 
-To restore automatic redirection, run with =--direct= (or =DIRECT_REDIRECT=1=). In
-that mode =/r/<code>= auto-redirects via meta-refresh after =--seconds= (use
-=--seconds 0= for an instant redirect).
+To restore automatic redirection, run with =--direct= (or
+=DIRECT_REDIRECT=1=).  In that mode =/r/<code>= auto-redirects via
+meta-refresh after =--seconds= (use =--seconds 0= for an instant
+redirect).
 
-Submitted URLs are validated: only public =http://= / =https://= addresses are
-accepted. Non-http(s) schemes, URLs with embedded credentials (=user:pass@host=),
-and private/loopback/link-local hosts (=localhost=, =127.0.0.0/8=, =10.0.0.0/8=,
-=172.16.0.0/12=, =192.168.0.0/16=, =169.254.0.0/16=, IPv6 =::1=/ULA/link-local) are
-rejected.
+Submitted URLs are validated. Only public =http://= and =https://=
+addresses are accepted. The following are rejected:
+
+- Non-HTTP(S) schemes (for example =javascript:=, =data:=, =file:=).
+- URLs with embedded credentials (=user:pass@host=).
+- Private, loopback, and link-local hosts: =localhost=, =127.0.0.0/8=,
+  =10.0.0.0/8=, =172.16.0.0/12=, =192.168.0.0/16=, =169.254.0.0/16=, and the
+  IPv6 equivalents (=::1=, ULA, link-local).
+
+Unknown short codes return =404= with a "not found" page.
+
+** Rate limiting and body limits
+
+The write endpoint (=POST /register=) is protected against flooding and
+abuse:
+
+- *Rate limit:* a per-IP sliding window. By default, at most 10 requests
+  per 60 seconds per client IP. Exceeding it returns =429 Too Many
+  Requests= with a =Retry-After= header and a friendly page. Tune with
+  =--rate-limit-max= and =--rate-limit-window=, or turn it off with
+  =--no-rate-limit= / =RATE_LIMIT=off=.
+- *Body cap:* requests whose =Content-Length= exceeds =--max-body= (default
+  8192 bytes) are rejected with =413= before any processing.
+
+Behind a reverse proxy, every request appears to come from the proxy,
+which would collapse the per-IP limit into a single global
+bucket. Enable =--trust-proxy= (or =TRUST_PROXY=1=) to read the client IP
+from the =X-Forwarded-For= header instead. Only enable this when you
+actually run behind a trusted proxy: the containerized stack sets it
+because Caddy sanitizes that header, so clients cannot spoof
+it. Running with =--trust-proxy= on a directly exposed server would let
+clients forge the header and dodge the limit.
 
 ** Admin: the =/list= page
 
-=/list= shows every registered link, so it is protected with HTTP Basic Auth and
-is *not* public. Set the credentials via environment variables before starting:
+=/list= shows every registered link, so it is protected with HTTP Basic
+Auth and is *not* public. Set the credentials via environment variables
+before starting:
 
 #+BEGIN_SRC sh
-ADMIN_USER=admin ADMIN_PASSWORD=change-me ./link-smasher --port 3800
+  ADMIN_USER=admin ADMIN_PASSWORD=change-me ./link-smasher --port 3800
 #+END_SRC
 
 - =ADMIN_USER= defaults to =admin=; =ADMIN_PASSWORD= has no default.
-- *Fail-closed:* if =ADMIN_PASSWORD= is unset (or empty), =/list= returns =401= for
-  everyone. It never opens accidentally.
-- Basic Auth has no logout; the browser caches the credentials until it is closed.
+- *Fail-closed:* if =ADMIN_PASSWORD= is unset or empty, =/list= returns =401=
+  for everyone. It never opens accidentally.
+- Basic Auth has no logout; the browser caches the credentials until
+  it is closed.
 
-*Security note:* Basic Auth sends the credentials base64-encoded, *not* encrypted.
-Only expose this over *HTTPS* (e.g. behind a TLS-terminating reverse proxy such as
-nginx or Caddy). Over plain HTTP the admin password travels in the clear.
+*Security note:* Basic Auth sends the credentials base64-encoded, *not*
+encrypted. Only expose this over *HTTPS*, for example behind a
+TLS-terminating reverse proxy such as Caddy (see [[*Running with HTTPS (Podman / Docker + Caddy)][Running with
+HTTPS]]). Over plain HTTP the admin password travels in the clear.
+
+** License
+
+MIT. See [[file:LICENSE][LICENSE]].
