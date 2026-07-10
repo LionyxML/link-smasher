@@ -18,6 +18,8 @@ services:
       BASE_URL: "https://${DOMAIN}/"
       ADMIN_USER: "${ADMIN_USER:-admin}"
       ADMIN_PASSWORD: "${ADMIN_PASSWORD:?set ADMIN_PASSWORD in .env}"
+      DIRECT_REDIRECT: "${DIRECT_REDIRECT:-off}"
+      SECONDS: "${SECONDS:-3}"
       # Behind Caddy every request arrives from the proxy, so honor X-Forwarded-For
       # to keep the per-IP rate limit working. Safe only because Caddy sets it.
       TRUST_PROXY: "1"

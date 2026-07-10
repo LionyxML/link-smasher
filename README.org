@@ -193,6 +193,8 @@ These variables come from =.env= (see =.env.example=):
 | =ACME_EMAIL=        | recommended | Email for the Let's Encrypt account (expiry notices)              |
 | =ADMIN_USER=        | no          | Admin username for =/list= (defaults to =admin=)                      |
 | =ADMIN_PASSWORD=    | yes         | Admin password for =/list=; the app refuses to be useful without it |
+| =DIRECT_REDIRECT=   | no          | =on= = auto-redirect on =/r/= instead of the click-through page       |
+| =SECONDS=           | no          | Meta-refresh delay in direct mode, seconds (=0= = instant)          |
 | =RATE_LIMIT=        | no          | Set to =off= to disable rate limiting                               |
 | =RATE_LIMIT_MAX=    | no          | Requests per window per IP (default 10)                           |
 | =RATE_LIMIT_WINDOW= | no          | Window length in seconds (default 60)                             |
