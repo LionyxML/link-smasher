@@ -43,6 +43,9 @@ link-smasher
 *.sqlite
 *.db
 
+# Local environment / secrets (.env.example stays tracked)
+.env
+
 # Editor/IDE
 *~
 \#*\#

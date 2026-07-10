@@ -1,0 +1,24 @@
+# Development overlay: serve on unprivileged ports so local runs never need
+# (or fight over) 80/443. Use together with the base file:
+#
+#   podman compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+#
+# Then browse https://localhost:8443/ (Caddy internal-CA cert; accept the warning).
+#
+# This overlay forces DOMAIN=localhost so Caddy uses its internal CA and never
+# tries (and fails) to get a real Let's Encrypt cert — regardless of the DOMAIN in
+# your .env. `!override` replaces the base ports list instead of appending to it
+# (Compose merges sequences by default, which would keep 80/443 too).
+
+services:
+  app:
+    environment:
+      # Generated links point at the dev HTTPS port.
+      BASE_URL: "https://localhost:8443/"
+  caddy:
+    environment:
+      # Local-only: internal CA, no ACME. Overrides ${DOMAIN} from .env.
+      DOMAIN: localhost
+    ports: !override
+      - "8080:80"
+      - "8443:443"

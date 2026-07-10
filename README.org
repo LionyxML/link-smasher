@@ -45,7 +45,10 @@ Build a standalone executable:
 make build
 #+END_SRC
 
-** Running
+** Running locally (plain HTTP, via make)
+
+Quickest way to run the app directly, without a proxy or TLS — good for hacking on
+it. For HTTPS, see [[*Running with HTTPS (Podman / Docker + Caddy)][Running with HTTPS]] below.
 
 *** From source (development)
 
@@ -73,19 +76,86 @@ Or via environment variables:
 PORT=3800 DB=db.sqlite3 BASE_URL=http://localhost:3800/ SECONDS=3 ./link-smasher
 #+END_SRC
 
+** Running with HTTPS (Podman / Docker + Caddy)
+
+For anything public, run the app behind [[https://caddyserver.com/][Caddy]], which terminates TLS with
+*automatic HTTPS*: it fetches and renews a Let's Encrypt certificate for your domain
+and redirects HTTP to HTTPS. This also puts the admin Basic Auth (=/list=) safely
+behind TLS. The commands use =podman compose=; =docker compose= is identical.
+
+First, the env file (shared by both modes below):
+
+#+BEGIN_SRC sh
+cp .env.example .env      # then edit it
+#+END_SRC
+
+*** Development (local, unprivileged ports)
+
+The =docker-compose.dev.yml= overlay serves on *8080/8443* instead of 80/443 (no root
+needed, no clash with other services) and *forces =DOMAIN=localhost=* so Caddy uses
+its own internal CA instead of trying to get a real Let's Encrypt cert. So you don't
+even need to edit =DOMAIN= in =.env= for dev — just make sure =ADMIN_PASSWORD= is set:
+
+#+BEGIN_SRC sh
+podman compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+#+END_SRC
+
+Then open =https://localhost:8443/=. Caddy's internal-CA cert makes the browser warn
+(expected locally) — accept it, or use =curl -k=. Let's Encrypt does *not* work for
+=localhost=. Note: the HTTP→HTTPS redirect on =:8080= points at =:443= (Caddy can't see
+the port map), so in dev just hit =https://localhost:8443/= directly.
+
+*** Production (real domain, ports 80/443)
+
+Point a real =DOMAIN= at the host with ports *80* and *443* reachable, and set
+=ACME_EMAIL= + a strong =ADMIN_PASSWORD= in =.env=. Then just the base file:
+
+#+BEGIN_SRC sh
+podman compose up -d --build
+#+END_SRC
+
+Caddy obtains a real Let's Encrypt cert automatically. Browse =https://your.domain/=.
+
+*** Everyday commands
+
+#+BEGIN_SRC sh
+podman compose ps                 # what's running
+podman compose logs -f caddy      # watch cert issuance / proxy logs
+podman compose up -d --build      # rebuild after code changes
+podman compose down               # stop (keeps db + certs in volumes)
+podman compose down -v            # stop AND wipe db + certs
+#+END_SRC
+
+(For the dev overlay, repeat the =-f docker-compose.yml -f docker-compose.dev.yml=
+flags on =down= / =logs= too.)
+
+*** Notes
+
+- The app never binds a public port itself; only Caddy does. Requests reach the app
+  from Caddy, so the compose sets =TRUST_PROXY=1= to keep the per-IP rate limit
+  working off =X-Forwarded-For= (safe because Caddy sanitizes that header).
+- Certificates persist in the =caddy_data= volume across restarts; the SQLite
+  database persists in =app_data=.
+- =.env= is gitignored — keep real secrets out of git; =.env.example= is the template.
+
 ** CLI Options
 
-| Flag          | Env var         | Default                | Description                                                 |
-|---------------+-----------------+------------------------+-------------------------------------------------------------|
-| =-p=, =--port=    | =PORT=            | =3800=                   | Web server port                                             |
-| =-d=, =--db=      | =DB=              | =db.sqlite3=             | Path to SQLite database file                                |
-| =-b=, =--base=    | =BASE_URL=        | =http://localhost:3800/= | Base URL used in generated links                            |
-| =-s=, =--seconds= | =SECONDS=         | =3=                      | Seconds before redirect (only in =--direct= mode)             |
-| =--direct=      | =DIRECT_REDIRECT= | (off)                  | Auto-redirect on =/r/= instead of the click-through page      |
-| =-h=, =--help=    |                 |                        | Show help                                                   |
-| =-v=, =--version= |                 |                        | Show version                                                |
-|               | =ADMIN_USER=      | =admin=                  | Username for the protected =/list= page                       |
-|               | =ADMIN_PASSWORD=  | (unset)                | Password for =/list= (env only). If unset, =/list= stays closed |
+| Flag                | Env var           | Default                | Description                                                 |
+|---------------------+-------------------+------------------------+-------------------------------------------------------------|
+| =-p=, =--port=          | =PORT=              | =3800=                   | Web server port                                             |
+| =-d=, =--db=            | =DB=                | =db.sqlite3=             | Path to SQLite database file                                |
+| =-b=, =--base=          | =BASE_URL=          | =http://localhost:3800/= | Base URL used in generated links                            |
+| =-s=, =--seconds=       | =SECONDS=           | =3=                      | Seconds before redirect (only in =--direct= mode)             |
+| =--direct=            | =DIRECT_REDIRECT=   | (off)                  | Auto-redirect on =/r/= instead of the click-through page      |
+| =--no-rate-limit=     | =RATE_LIMIT=        | (on)                   | Disable per-IP rate limiting (=RATE_LIMIT=off=)               |
+| =--rate-limit-max=    | =RATE_LIMIT_MAX=    | =10=                     | Max POST =/register= per IP per window                        |
+| =--rate-limit-window= | =RATE_LIMIT_WINDOW= | =60=                     | Rate-limit window, seconds                                  |
+| =--max-body=          | =MAX_BODY=          | =8192=                   | Max request body size, bytes (else =413=)                     |
+| =--trust-proxy=       | =TRUST_PROXY=       | (off)                  | Read client IP from =X-Forwarded-For= (only behind a proxy)   |
+| =-h=, =--help=          |                   |                        | Show help                                                   |
+| =-v=, =--version=       |                   |                        | Show version                                                |
+|                     | =ADMIN_USER=        | =admin=                  | Username for the protected =/list= page                       |
+|                     | =ADMIN_PASSWORD=    | (unset)                | Password for =/list= (env only). If unset, =/list= stays closed |
 
 ** Make Targets
 

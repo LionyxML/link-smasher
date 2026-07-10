@@ -1,0 +1,17 @@
+# VCS / editor
+.git
+.gitignore
+.claude
+
+# Local build artifacts (rebuilt inside the image)
+link-smasher
+*.fasl
+system-index.txt
+
+# Local data / env — never bake these into the image
+*.sqlite3
+.env
+
+# Docs not needed for the build
+docs
+analise.md

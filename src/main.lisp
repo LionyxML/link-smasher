@@ -16,6 +16,14 @@
                    '("1" "true" "yes" "on")
                    :test #'string=))))
 
+(defun env-falsy-p (name)
+  "True when environment variable NAME is set to a falsy string.
+Used for opt-out of behaviour that is on by default."
+  (let ((v (uiop:getenv name)))
+    (and v (member (string-downcase v)
+                   '("0" "false" "no" "off")
+                   :test #'string=))))
+
 (defun print-banner (port db base-url)
   (format t "
 >>>                      Ready to SMASH!
@@ -77,7 +85,20 @@
                                    "admin"))
                    (admin-password (uiop:getenv "ADMIN_PASSWORD"))
                    (direct-redirect (or (option-value :direct data)
-                                        (env-truthy-p "DIRECT_REDIRECT"))))
+                                        (env-truthy-p "DIRECT_REDIRECT")))
+                   (rate-limit-enabled (not (or (option-value :no-rate-limit data)
+                                                (env-falsy-p "RATE_LIMIT"))))
+                   (rate-limit-max (or (option-value :rate-limit-max data)
+                                       (uiop:getenv "RATE_LIMIT_MAX")
+                                       10))
+                   (rate-limit-window (or (option-value :rate-limit-window data)
+                                          (uiop:getenv "RATE_LIMIT_WINDOW")
+                                          60))
+                   (max-body (or (option-value :max-body data)
+                                 (uiop:getenv "MAX_BODY")
+                                 8192))
+                   (trust-proxy (or (option-value :trust-proxy data)
+                                    (env-truthy-p "TRUST_PROXY"))))
 
                (print-banner port db base-url)
 
@@ -92,7 +113,12 @@
                 :seconds seconds
                 :admin-user admin-user
                 :admin-password admin-password
-                :direct-redirect direct-redirect)
+                :direct-redirect direct-redirect
+                :rate-limit-enabled rate-limit-enabled
+                :rate-limit-max rate-limit-max
+                :rate-limit-window rate-limit-window
+                :max-body max-body
+                :trust-proxy trust-proxy)
 
                ;; Block main thread until signal received
                (let ((shutdown (sb-thread:make-semaphore :name "shutdown")))

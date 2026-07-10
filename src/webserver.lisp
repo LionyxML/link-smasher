@@ -21,6 +21,29 @@ When NIL or empty, admin routes are closed (fail-closed).")
   "When true, /r/:short auto-redirects (meta-refresh, honoring *seconds*).
 When NIL (default), the visitor sees the destination and must click through.")
 
+(defvar *rate-limit-enabled* t
+  "When true (default), POST /register is rate limited per client IP.")
+
+(defvar *rate-limit-max* 10
+  "Max allowed POST /register requests per client IP within *rate-limit-window*.")
+
+(defvar *rate-limit-window* 60
+  "Length of the rate-limit sliding window, in seconds.")
+
+(defvar *max-body-bytes* 8192
+  "Maximum accepted request body size (Content-Length) in bytes.")
+
+(defvar *trust-proxy* nil
+  "When true, take the client IP from the X-Forwarded-For header instead of the
+socket peer. Enable ONLY when running behind a trusted reverse proxy (e.g. Caddy)
+that sets the header; otherwise clients could spoof it to dodge the rate limit.")
+
+(defvar *rate-limit-table* (make-hash-table :test #'equal)
+  "Maps client IP (string) -> list of request timestamps (universal-time).")
+
+(defvar *rate-limit-lock* (sb-thread:make-mutex :name "rate-limit")
+  "Guards *rate-limit-table* (Hunchentoot serves one thread per request).")
+
 ;; Parameters
 (defparameter *www-directory*
   (asdf:system-relative-pathname
@@ -133,11 +156,72 @@ Calls NEXT when authorized, otherwise responds 401 with WWW-Authenticate."
       (funcall next)
       (hunchentoot:require-authorization "LinkSmasher Admin")))
 
+(defun rate-limit-check (ip)
+  "Record a request from IP and decide whether it is allowed.
+Sliding window: keep only timestamps within the last *rate-limit-window*
+seconds; allow (and record) while fewer than *rate-limit-max* remain.
+Returns (values allowed-p retry-after-seconds)."
+  (let ((now (get-universal-time))
+        (window *rate-limit-window*)
+        (max *rate-limit-max*))
+    (sb-thread:with-mutex (*rate-limit-lock*)
+      (let ((recent (remove-if (lambda (ts) (< ts (- now window)))
+                               (gethash ip *rate-limit-table*))))
+        (cond
+          ((< (length recent) max)
+           (setf (gethash ip *rate-limit-table*) (cons now recent))
+           (values t 0))
+          (t
+           ;; Denied. Drop the recorded (but unused) entry back so a rejected
+           ;; request does not extend the window, and report when the oldest
+           ;; in-window stamp ages out.
+           (setf (gethash ip *rate-limit-table*) recent)
+           (values nil (max 1 (- (+ (first (last recent)) window) now)))))))))
+
+(defun client-ip ()
+  "The IP used for rate limiting. By default the real socket peer
+(hunchentoot:remote-addr*), which cannot be spoofed. When *trust-proxy* is on,
+use hunchentoot:real-remote-addr, which reads X-Forwarded-For — correct only
+behind a trusted reverse proxy (otherwise the client controls the header)."
+  (if *trust-proxy*
+      (hunchentoot:real-remote-addr)
+      (hunchentoot:remote-addr*)))
+
+(defun @rate-limit (next)
+  "easy-routes decorator: per-IP rate limit. On denial responds 429 with a
+Retry-After header and a friendly page; otherwise calls NEXT. See CLIENT-IP for
+how the client address is resolved (socket peer, or X-Forwarded-For behind a
+trusted proxy when --trust-proxy / TRUST_PROXY is set)."
+  (if *rate-limit-enabled*
+      (multiple-value-bind (allowed retry-after)
+          (rate-limit-check (client-ip))
+        (if allowed
+            (funcall next)
+            (progn
+              (setf (hunchentoot:return-code*) 429
+                    (hunchentoot:header-out :retry-after) retry-after)
+              (render "rate-limited.html" :retry retry-after))))
+      (funcall next)))
+
+(defun @limit-body (next)
+  "easy-routes decorator: reject requests whose Content-Length exceeds
+*max-body-bytes* with 413. A missing length (e.g. chunked) is allowed through;
+browser form POSTs always send Content-Length."
+  (let* ((raw (hunchentoot:header-in* :content-length))
+         (len (and raw (parse-integer raw :junk-allowed t))))
+    (if (and len (> len *max-body-bytes*))
+        (progn
+          (setf (hunchentoot:return-code*) 413
+                (hunchentoot:content-type*) "text/plain")
+          "Request body too large.")
+        (funcall next))))
+
 ;;; Routes
 (easy-routes:defroute root ("/") ()
                       (render "index.html"))
 
-(easy-routes:defroute register-submit ("/register" :method :post) ()
+(easy-routes:defroute register-submit
+    ("/register" :method :post :decorators (@limit-body @rate-limit)) ()
                       (let ((url (hunchentoot:parameter "url")))
                         (if (safe-redirect-url-p url)
                             (let ((short (format nil "~Ar/~A" *base-url*
@@ -167,34 +251,42 @@ Calls NEXT when authorized, otherwise responds 401 with WWW-Authenticate."
 
 ;;; Server
 (defun start-server (&key port base-url seconds admin-user admin-password
-                          direct-redirect)
-  (let ((port (etypecase port
-                (integer port)
-                (string (parse-integer port))))
-        (seconds (etypecase seconds
-                   (integer seconds)
-                   (string (parse-integer seconds)))))
+                       direct-redirect (rate-limit-enabled t)
+                       rate-limit-max rate-limit-window max-body
+                       trust-proxy)
+  (flet ((as-int (v default)
+           (etypecase v
+             (null default)
+             (integer v)
+             (string (parse-integer v)))))
+    (let ((port (as-int port nil))
+          (seconds (as-int seconds nil)))
 
-    (setf *base-url* base-url)
-    (setf *seconds* seconds)
-    (when admin-user
-      (setf *admin-user* admin-user))
-    (setf *admin-password* admin-password)
-    (setf *direct-redirect* direct-redirect)
+      (setf *base-url* base-url)
+      (setf *seconds* seconds)
+      (when admin-user
+        (setf *admin-user* admin-user))
+      (setf *admin-password* admin-password)
+      (setf *direct-redirect* direct-redirect)
+      (setf *rate-limit-enabled* rate-limit-enabled)
+      (setf *rate-limit-max* (as-int rate-limit-max 10))
+      (setf *rate-limit-window* (as-int rate-limit-window 60))
+      (setf *max-body-bytes* (as-int max-body 8192))
+      (setf *trust-proxy* trust-proxy)
 
-    (format t "~&Starting the web server on port ~a~&" port)
-    (force-output)
+      (format t "~&Starting the web server on port ~a~&" port)
+      (force-output)
 
-    (pushnew
-     (hunchentoot:create-folder-dispatcher-and-handler "/" *www-directory*)
-     hunchentoot:*dispatch-table*
-     :test #'equal)
+      (pushnew
+       (hunchentoot:create-folder-dispatcher-and-handler "/" *www-directory*)
+       hunchentoot:*dispatch-table*
+       :test #'equal)
 
-    (setf *server*
-          (make-instance 'easy-routes:easy-routes-acceptor
-                         :port port))
+      (setf *server*
+            (make-instance 'easy-routes:easy-routes-acceptor
+                           :port port))
 
-    (hunchentoot:start *server*)))
+      (hunchentoot:start *server*))))
 
 (defun stop-server ()
   (hunchentoot:stop *server*))

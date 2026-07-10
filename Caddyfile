@@ -1,0 +1,13 @@
+# Automatic HTTPS: Caddy obtains + renews a Let's Encrypt cert for {$DOMAIN},
+# redirects HTTP->HTTPS, and reverse-proxies to the app container.
+# With DOMAIN=localhost, Caddy serves a local internal-CA cert instead.
+
+{
+	# ACME account email (optional but recommended for expiry notices).
+	email {$ACME_EMAIL}
+}
+
+{$DOMAIN} {
+	encode gzip zstd
+	reverse_proxy app:3800
+}
