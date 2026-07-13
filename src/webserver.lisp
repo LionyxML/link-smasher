@@ -55,13 +55,34 @@ that sets the header; otherwise clients could spoof it to dodge the rate limit."
    :link-smasher
    "templates/"))
 
+(defparameter *template-files*
+  '("index.html" "register.html" "result.html" "list.html"
+    "redirect.html" "not-found.html" "rate-limited.html")
+  "Templates rendered by routes; precompiled at startup. (layout.html is the
+base and gets pulled in when its children compile.)")
+
 ;; Helpers
+(defvar *template-cache* (make-hash-table :test #'equal)
+  "Maps template name (string) -> compiled djula template.
+Compiling on every request races under Hunchentoot's thread-per-request model
+and is slow; compile once, reuse.")
+
+(defvar *template-cache-lock* (sb-thread:make-mutex :name "template-cache"))
+
+(defun compiled-template (template-name)
+  "Return the compiled template for TEMPLATE-NAME, compiling and caching on
+first use. Guarded so concurrent first hits compile only once."
+  (or (gethash template-name *template-cache*)
+      (sb-thread:with-mutex (*template-cache-lock*)
+        (or (gethash template-name *template-cache*)
+            (setf (gethash template-name *template-cache*)
+                  (djula:compile-template*
+                   (merge-pathnames template-name *template-directory*)))))))
+
 (defun render (template-name &rest args)
   (apply
    #'djula:render-template*
-   (djula:compile-template*
-    (merge-pathnames template-name
-                     *template-directory*))
+   (compiled-template template-name)
    nil
    :title (getf link-smasher:*app* :name)
    :description (getf link-smasher:*app* :description)
@@ -281,6 +302,11 @@ browser form POSTs always send Content-Length."
        (hunchentoot:create-folder-dispatcher-and-handler "/" *www-directory*)
        hunchentoot:*dispatch-table*
        :test #'equal)
+
+      ;; Precompile templates now (single-threaded) so no request thread hits a
+      ;; cold cache and races the first compile.
+      (dolist (tpl *template-files*)
+        (compiled-template tpl))
 
       (setf *server*
             (make-instance 'easy-routes:easy-routes-acceptor
