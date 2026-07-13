@@ -243,13 +243,13 @@ browser form POSTs always send Content-Length."
 
 (easy-routes:defroute register-submit
     ("/register" :method :post :decorators (@limit-body @rate-limit)) ()
-                      (let ((url (hunchentoot:parameter "url")))
-                        (if (safe-redirect-url-p url)
-                            (let ((short (format nil "~Ar/~A" *base-url*
-                                                 (link-smasher.db:create-link url))))
-                              (render "result.html" :short short))
-                            (render "register.html"
-                                    :error "URL is not allowed. Must be a public http:// or https:// address."))))
+    (let ((url (hunchentoot:parameter "url")))
+      (if (safe-redirect-url-p url)
+          (let ((short (format nil "~Ar/~A" *base-url*
+                               (link-smasher.db:create-link url))))
+            (render "result.html" :short short))
+          (render "register.html"
+                  :error "URL is not allowed. Must be a public http:// or https:// address."))))
 
 (easy-routes:defroute register-page ("/register" :method :get) ()
                       (render "register.html"))
@@ -274,14 +274,16 @@ browser form POSTs always send Content-Length."
 (defun start-server (&key port base-url seconds admin-user admin-password
                        direct-redirect (rate-limit-enabled t)
                        rate-limit-max rate-limit-window max-body
-                       trust-proxy)
+                       trust-proxy max-threads accept-backlog)
   (flet ((as-int (v default)
            (etypecase v
              (null default)
              (integer v)
              (string (parse-integer v)))))
     (let ((port (as-int port nil))
-          (seconds (as-int seconds nil)))
+          (seconds (as-int seconds nil))
+          (max-threads (as-int max-threads 100))
+          (accept-backlog (as-int accept-backlog 200)))
 
       (setf *base-url* base-url)
       (setf *seconds* seconds)
@@ -310,7 +312,11 @@ browser form POSTs always send Content-Length."
 
       (setf *server*
             (make-instance 'easy-routes:easy-routes-acceptor
-                           :port port))
+                           :port port
+                           :taskmaster
+                           (make-instance 'hunchentoot:one-thread-per-connection-taskmaster
+                                          :max-thread-count max-threads
+                                          :max-accept-count (+ max-threads accept-backlog))))
 
       (hunchentoot:start *server*))))
 

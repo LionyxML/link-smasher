@@ -28,6 +28,8 @@ services:
       RATE_LIMIT_MAX: "${RATE_LIMIT_MAX:-10}"
       RATE_LIMIT_WINDOW: "${RATE_LIMIT_WINDOW:-60}"
       MAX_BODY: "${MAX_BODY:-8192}"
+      MAX_THREADS: "${MAX_THREADS:-100}"
+      ACCEPT_BACKLOG: "${ACCEPT_BACKLOG:-200}"
     volumes:
       - app_data:/data
 

@@ -98,7 +98,13 @@ Used for opt-out of behaviour that is on by default."
                                  (uiop:getenv "MAX_BODY")
                                  8192))
                    (trust-proxy (or (option-value :trust-proxy data)
-                                    (env-truthy-p "TRUST_PROXY"))))
+                                    (env-truthy-p "TRUST_PROXY")))
+                   (max-threads (or (option-value :max-threads data)
+                                    (uiop:getenv "MAX_THREADS")
+                                    100))
+                   (accept-backlog (or (option-value :accept-backlog data)
+                                       (uiop:getenv "ACCEPT_BACKLOG")
+                                       200)))
 
                (print-banner port db base-url)
 
@@ -118,7 +124,9 @@ Used for opt-out of behaviour that is on by default."
                 :rate-limit-max rate-limit-max
                 :rate-limit-window rate-limit-window
                 :max-body max-body
-                :trust-proxy trust-proxy)
+                :trust-proxy trust-proxy
+                :max-threads max-threads
+                :accept-backlog accept-backlog)
 
                ;; Block main thread until signal received
                (let ((shutdown (sb-thread:make-semaphore :name "shutdown")))
