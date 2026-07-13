@@ -6,7 +6,10 @@
 (defun connect (database-path)
   (setf *connection*
         (dbi:connect :sqlite3
-                     :database-name database-path)))
+                     :database-name database-path))
+  (dbi:do-sql *connection* "PRAGMA journal_mode=WAL")
+  (dbi:do-sql *connection* "PRAGMA busy_timeout=5000")
+  *connection*)
 
 (defun disconnect ()
   (when *connection*

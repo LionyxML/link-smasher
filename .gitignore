@@ -42,6 +42,8 @@ link-smasher
 *.sqlite3
 *.sqlite
 *.db
+*.sqlite3-wal
+*.sqlite3-shm
 
 # Local environment / secrets (.env.example stays tracked)
 .env
