@@ -9,7 +9,7 @@
     ((:module "src"
               :components
               ((:file "packages")
-               (:file  "utils"    :depends-on ("packages"))
+               (:file "utils"     :depends-on ("packages"))
                (:file "cli"       :depends-on ("packages"))
                (:file "db"        :depends-on ("packages"))
                (:file "webserver" :depends-on ("packages"))
