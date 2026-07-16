@@ -31,7 +31,7 @@ services:
       MAX_THREADS: "${MAX_THREADS:-100}"
       ACCEPT_BACKLOG: "${ACCEPT_BACKLOG:-200}"
     volumes:
-      - app_data:/data
+      - ./data:/data
 
   caddy:
     image: docker.io/library/caddy:2-alpine
@@ -51,6 +51,5 @@ services:
       - caddy_config:/config
 
 volumes:
-  app_data:
   caddy_data:
   caddy_config:
