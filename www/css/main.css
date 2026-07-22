@@ -1,8 +1,37 @@
+html {
+  scrollbar-gutter: stable;
+}
+
 body {
   margin: auto;
   width: 80vw;
   background-color: #181a1b;
   color: #e8e6e3;
+}
+
+table.links {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+table.links th,
+table.links td {
+  border-bottom: 1px solid #3a3d3f;
+  padding: 0.4rem 0.6rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+table.links .num {
+  text-align: center;
+}
+
+table.links form {
+  display: inline;
+}
+
+table.links .current {
+  color: #9a9a9a;
 }
 
 a,

@@ -1,24 +1,25 @@
 (in-package #:link-smasher.cli)
 
 (defparameter *options*
-  '(("-p"                  . :port)
-    ("--port"              . :port)
-    ("-d"                  . :db)
-    ("--db"                . :db)
-    ("-b"                  . :base-url)
-    ("--base"              . :base-url)
-    ("-s"                  . :seconds)
-    ("--seconds"           . :seconds)
-    ("--direct"            . :direct)
-    ("--no-rate-limit"     . :no-rate-limit)
-    ("--rate-limit-max"    . :rate-limit-max)
-    ("--rate-limit-window" . :rate-limit-window)
-    ("--max-body"          . :max-body)
-    ("--trust-proxy"       . :trust-proxy)
-    ("-h"                  . :help)
-    ("--help"              . :help)
-    ("-v"                  . :version)
-    ("--version"           . :version)))
+  '(("-p"                         . :port)
+    ("--port"                     . :port)
+    ("-d"                         . :db)
+    ("--db"                       . :db)
+    ("-b"                         . :base-url)
+    ("--base"                     . :base-url)
+    ("-s"                         . :seconds)
+    ("--seconds"                  . :seconds)
+    ("--direct"                   . :direct)
+    ("--no-rate-limit"            . :no-rate-limit)
+    ("--rate-limit-max"           . :rate-limit-max)
+    ("--rate-limit-window"        . :rate-limit-window)
+    ("--max-body"                 . :max-body)
+    ("--trust-proxy"              . :trust-proxy)
+    ("--analytics-retention-days" . :analytics-retention-days)
+    ("-h"                         . :help)
+    ("--help"                     . :help)
+    ("-v"                         . :version)
+    ("--version"                  . :version)))
 
 (defun app-prop (key)
   (getf link-smasher:*app* key))
@@ -59,6 +60,9 @@ Options:
       --max-body BYTES      Max request body size (default: 8192).
       --trust-proxy         Read client IP from X-Forwarded-For. Enable ONLY
                             behind a trusted reverse proxy (e.g. Caddy/nginx).
+      --analytics-retention-days N
+                            Delete /list analytics events older than N days
+                            (default: 90). 0 keeps them forever.
   -v, --version             Show version
 
 Environment (env-only):
@@ -73,6 +77,8 @@ Environment (switch alternatives):
   RATE_LIMIT_WINDOW Same as --rate-limit-window.
   MAX_BODY          Same as --max-body.
   TRUST_PROXY       Same as --trust-proxy when set to 1/true/yes/on.
+  ANALYTICS_RETENTION_DAYS
+                    Same as --analytics-retention-days.
 
 "
           (app-prop :name)
@@ -100,7 +106,8 @@ Environment (switch alternatives):
                 (push (cons option t) result))
 
                ((:port :db :base-url :seconds
-                       :rate-limit-max :rate-limit-window :max-body)
+                       :rate-limit-max :rate-limit-window :max-body
+                       :analytics-retention-days)
                 (if args
                     (push (cons option (pop args)) result)
                     (return-from parse-args

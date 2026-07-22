@@ -187,18 +187,19 @@ automatically. Browse =https://your.domain/=.
 
 These variables come from =.env= (see =.env.example=):
 
-| Variable          | Required    | Purpose                                                           |
-|-------------------+-------------+-------------------------------------------------------------------|
-| =DOMAIN=            | yes (prod)  | Public hostname Caddy serves. =localhost= in dev uses internal CA   |
-| =ACME_EMAIL=        | recommended | Email for the Let's Encrypt account (expiry notices)              |
-| =ADMIN_USER=        | no          | Admin username for =/list= (defaults to =admin=)                      |
-| =ADMIN_PASSWORD=    | yes         | Admin password for =/list=; the app refuses to be useful without it |
-| =DIRECT_REDIRECT=   | no          | =on= = auto-redirect on =/r/= instead of the click-through page       |
-| =SECONDS=           | no          | Meta-refresh delay in direct mode, seconds (=0= = instant)          |
-| =RATE_LIMIT=        | no          | Set to =off= to disable rate limiting                               |
-| =RATE_LIMIT_MAX=    | no          | Requests per window per IP (default 10)                           |
-| =RATE_LIMIT_WINDOW= | no          | Window length in seconds (default 60)                             |
-| =MAX_BODY=          | no          | Max request body size in bytes (default 8192)                     |
+| Variable                 | Required    | Purpose                                                                   |
+|--------------------------+-------------+---------------------------------------------------------------------------|
+| =DOMAIN=                   | yes (prod)  | Public hostname Caddy serves. =localhost= in dev uses internal CA           |
+| =ACME_EMAIL=               | recommended | Email for the Let's Encrypt account (expiry notices)                      |
+| =ADMIN_USER=               | no          | Admin username for =/list= (defaults to =admin=)                              |
+| =ADMIN_PASSWORD=           | yes         | Admin password for =/list=; the app refuses to be useful without it         |
+| =DIRECT_REDIRECT=          | no          | =on= = auto-redirect on =/r/= instead of the click-through page               |
+| =SECONDS=                  | no          | Meta-refresh delay in direct mode, seconds (=0= = instant)                  |
+| =RATE_LIMIT=               | no          | Set to =off= to disable rate limiting                                       |
+| =RATE_LIMIT_MAX=           | no          | Requests per window per IP (default 10)                                   |
+| =RATE_LIMIT_WINDOW=        | no          | Window length in seconds (default 60)                                     |
+| =MAX_BODY=                 | no          | Max request body size in bytes (default 8192)                             |
+| =ANALYTICS_RETENTION_DAYS= | no          | Delete =/list= analytics events older than N days (default 90, =0= = forever) |
 
 The compose file also sets =TRUST_PROXY=1= for the app so per-IP rate
 limiting keeps working behind Caddy (see [[*Rate limiting and body
@@ -241,22 +242,23 @@ default*; disable it with =--no-rate-limit= or =RATE_LIMIT=off=.
 
 *** Options reference
 
-| Flag                | Env var           | Default                | Description                                                 |
-|---------------------+-------------------+------------------------+-------------------------------------------------------------|
-| =-p=, =--port=          | =PORT=              | =3800=                   | Web server port                                             |
-| =-d=, =--db=            | =DB=                | =db.sqlite3=             | Path to the SQLite database file (created if missing)       |
-| =-b=, =--base=          | =BASE_URL=          | =http://localhost:3800/= | Base URL used to build the generated short links            |
-| =-s=, =--seconds=       | =SECONDS=           | =3=                      | Delay before redirect, only used in =--direct= mode           |
-| =--direct=            | =DIRECT_REDIRECT=   | off                    | Auto-redirect on =/r/= instead of the click-through page      |
-| =--no-rate-limit=     | =RATE_LIMIT=        | on                     | Disable per-IP rate limiting (=RATE_LIMIT=off= to disable)    |
-| =--rate-limit-max=    | =RATE_LIMIT_MAX=    | =10=                     | Max POST =/register= requests per IP per window               |
-| =--rate-limit-window= | =RATE_LIMIT_WINDOW= | =60=                     | Rate-limit window length, in seconds                        |
-| =--max-body=          | =MAX_BODY=          | =8192=                   | Max request body size in bytes; larger returns =413=          |
-| =--trust-proxy=       | =TRUST_PROXY=       | off                    | Take client IP from =X-Forwarded-For= (only behind a proxy)   |
-| =-h=, =--help=          |                   |                        | Show help                                                   |
-| =-v=, =--version=       |                   |                        | Show version                                                |
-|                     | =ADMIN_USER=        | =admin=                  | Username for the protected =/list= page (env only)            |
-|                     | =ADMIN_PASSWORD=    | unset                  | Password for =/list= (env only); if unset, =/list= stays closed |
+| Flag                       | Env var                  | Default                | Description                                                   |
+|----------------------------+--------------------------+------------------------+---------------------------------------------------------------|
+| =-p=, =--port=                 | =PORT=                     | =3800=                   | Web server port                                               |
+| =-d=, =--db=                   | =DB=                       | =db.sqlite3=             | Path to the SQLite database file (created if missing)         |
+| =-b=, =--base=                 | =BASE_URL=                 | =http://localhost:3800/= | Base URL used to build the generated short links              |
+| =-s=, =--seconds=              | =SECONDS=                  | =3=                      | Delay before redirect, only used in =--direct= mode             |
+| =--direct=                   | =DIRECT_REDIRECT=          | off                    | Auto-redirect on =/r/= instead of the click-through page        |
+| =--no-rate-limit=            | =RATE_LIMIT=               | on                     | Disable per-IP rate limiting (=RATE_LIMIT=off= to disable)      |
+| =--rate-limit-max=           | =RATE_LIMIT_MAX=           | =10=                     | Max POST =/register= requests per IP per window                 |
+| =--rate-limit-window=        | =RATE_LIMIT_WINDOW=        | =60=                     | Rate-limit window length, in seconds                          |
+| =--max-body=                 | =MAX_BODY=                 | =8192=                   | Max request body size in bytes; larger returns =413=            |
+| =--trust-proxy=              | =TRUST_PROXY=              | off                    | Take client IP from =X-Forwarded-For= (only behind a proxy)     |
+| =--analytics-retention-days= | =ANALYTICS_RETENTION_DAYS= | =90=                     | Delete =/list= analytics events older than N days (=0= = forever) |
+| =-h=, =--help=                 |                          |                        | Show help                                                     |
+| =-v=, =--version=              |                          |                        | Show version                                                  |
+|                            | =ADMIN_USER=               | =admin=                  | Username for the protected =/list= page (env only)              |
+|                            | =ADMIN_PASSWORD=           | unset                  | Password for =/list= (env only); if unset, =/list= stays closed   |
 
 ** Make Targets
 

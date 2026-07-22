@@ -30,6 +30,7 @@ services:
       MAX_BODY: "${MAX_BODY:-8192}"
       MAX_THREADS: "${MAX_THREADS:-100}"
       ACCEPT_BACKLOG: "${ACCEPT_BACKLOG:-200}"
+      ANALYTICS_RETENTION_DAYS: "${ANALYTICS_RETENTION_DAYS:-90}"
     volumes:
       - ./data:/data
 

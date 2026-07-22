@@ -9,5 +9,16 @@
 
 {$DOMAIN} {
 	encode gzip zstd
-	reverse_proxy app:3800
+
+	# The app trusts both headers (TRUST_PROXY=1), so overwrite whatever the
+	# client sent. Caddy appends to X-Forwarded-For and the app reads the first
+	# entry, so without this anyone can forge their rate-limit bucket.
+	reverse_proxy app:3800 {
+		header_up X-Forwarded-For {remote_host}
+		header_up -CF-IPCountry
+	}
 }
+
+# Behind Cloudflare: swap the two header_up lines for
+# `header_up X-Forwarded-For {http.request.header.CF-Connecting-IP}` and let
+# CF-IPCountry through. Only safe if the origin refuses non-Cloudflare traffic.

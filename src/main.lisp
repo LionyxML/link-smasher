@@ -104,13 +104,25 @@ Used for opt-out of behaviour that is on by default."
                                     100))
                    (accept-backlog (or (option-value :accept-backlog data)
                                        (uiop:getenv "ACCEPT_BACKLOG")
-                                       200)))
+                                       200))
+                   (analytics-retention-days
+                     (or (option-value :analytics-retention-days data)
+                         (uiop:getenv "ANALYTICS_RETENTION_DAYS")
+                         90)))
 
                (print-banner port db base-url)
 
                ;; DB Connection
                (link-smasher.db:connect db)
                (link-smasher.db:ensure-schema)
+
+               (let ((days (if (stringp analytics-retention-days)
+                               (or (parse-integer analytics-retention-days
+                                                  :junk-allowed t)
+                                   90)
+                               analytics-retention-days)))
+                 (when (plusp days)
+                   (link-smasher.db:prune-accesses days)))
 
                ;; WEB Server Start
                (link-smasher.webserver:start-server
@@ -126,7 +138,8 @@ Used for opt-out of behaviour that is on by default."
                 :max-body max-body
                 :trust-proxy trust-proxy
                 :max-threads max-threads
-                :accept-backlog accept-backlog)
+                :accept-backlog accept-backlog
+                :analytics-retention-days analytics-retention-days)
 
                ;; Block main thread until signal received
                (let ((shutdown (sb-thread:make-semaphore :name "shutdown")))

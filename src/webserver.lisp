@@ -38,6 +38,17 @@ When NIL (default), the visitor sees the destination and must click through.")
 socket peer. Enable ONLY when running behind a trusted reverse proxy (e.g. Caddy)
 that sets the header; otherwise clients could spoof it to dodge the rate limit.")
 
+(defvar *analytics-retention-days* 90
+  "Access events older than this many days are deleted. 0 keeps them forever.")
+
+(defvar *prune-interval* 3600
+  "Minimum seconds between retention sweeps.")
+
+(defvar *last-prune* 0
+  "Universal time of the last retention sweep.")
+
+(defvar *prune-lock* (sb-thread:make-mutex :name "prune"))
+
 (defvar *rate-limit-table* (make-hash-table :test #'equal)
   "Maps client IP (string) -> list of request timestamps (universal-time).")
 
@@ -56,7 +67,7 @@ that sets the header; otherwise clients could spoof it to dodge the rate limit."
    "templates/"))
 
 (defparameter *template-files*
-  '("index.html" "register.html" "result.html" "list.html"
+  '("index.html" "register.html" "result.html" "list.html" "stats.html"
     "redirect.html" "not-found.html" "rate-limited.html")
   "Templates rendered by routes; precompiled at startup. (layout.html is the
 base and gets pulled in when its children compile.)")
@@ -149,6 +160,63 @@ Rejects non-http(s) schemes, missing host, embedded credentials
                   (null userinfo)
                   (not (private-or-local-host-p host))))
          (error () nil))))
+
+(defparameter *bot-user-agent-markers*
+  '("bot" "crawler" "spider" "slurp" "preview" "facebookexternalhit"
+    "whatsapp" "telegram" "slack" "discord" "twitter" "embedly" "skype"
+    "curl" "wget" "python-requests" "go-http-client" "headless" "monitor")
+  "Heuristic: UAs are self-reported, so this catches honest previewers, not liars.")
+
+(defun bot-user-agent-p (ua)
+  (and (stringp ua)
+       (let ((u (string-downcase ua)))
+         (some (lambda (marker) (search marker u)) *bot-user-agent-markers*))))
+
+(defun referrer-host ()
+  "Host only: a full referrer URL can carry paths and tokens from the referring page."
+  (let ((ref (hunchentoot:header-in* :referer)))
+    (when (and (stringp ref) (plusp (length ref)))
+      (handler-case
+          (let ((host (quri:uri-host (quri:uri ref))))
+            (when (and host (plusp (length host))) host))
+        (error () nil)))))
+
+(defun maybe-prune-accesses ()
+  "Sweep at most once per *prune-interval*, driven by traffic instead of a timer
+thread. Errors are swallowed so a failed sweep never breaks the request."
+  (when (plusp *analytics-retention-days*)
+    (let ((now (get-universal-time)))
+      (when (> (- now *last-prune*) *prune-interval*)
+        (sb-thread:with-mutex (*prune-lock*)
+          (when (> (- now *last-prune*) *prune-interval*)
+            (setf *last-prune* now)
+            (ignore-errors
+             (link-smasher.db:prune-accesses *analytics-retention-days*))))))))
+
+(defun visitor-country ()
+  "Country from CF-IPCountry, only when *trust-proxy* is set — without a proxy
+stripping it, any client can forge the header. XX (unknown) and T1 (Tor) are dropped."
+  (when *trust-proxy*
+    (let ((cc (hunchentoot:header-in* :cf-ipcountry)))
+      (when (and (stringp cc)
+                 (= (length cc) 2)
+                 (every #'alpha-char-p cc)
+                 (not (string-equal cc "XX"))
+                 (not (string-equal cc "T1")))
+        (string-upcase cc)))))
+
+(defun booleanize-bot-flag (rows)
+  "Djula's truth test treats any non-sequence as true, so a raw 0 would read as a bot."
+  (mapcar (lambda (row)
+            (let ((copy (copy-list row)))
+              (setf (getf copy :|is_bot|)
+                    (and (eql (getf row :|is_bot|) 1) t))
+              copy))
+          rows))
+
+(defun truncated (string limit)
+  (when (stringp string)
+    (if (> (length string) limit) (subseq string 0 limit) string)))
 
 (defun constant-time-string= (a b)
   "Compare two strings in time independent of where they first differ.
@@ -261,6 +329,24 @@ browser form POSTs always send Content-Length."
                                    :sort-by-accesses sort-desc)))
                         (render "list.html" :all-links all :sort-desc sort-desc)))
 
+(easy-routes:defroute link-stats
+    ("/list/stats/:short" :decorators (@require-admin)) (&path (short 'string))
+    (let ((row (first (link-smasher.db:find-by-short-code short))))
+      (if (null row)
+          (progn
+            (setf (hunchentoot:return-code*) hunchentoot:+http-not-found+)
+            (render "not-found.html"))
+          (let ((id (getf row :|id|)))
+            (render "stats.html"
+                    :link row
+                    :totals (link-smasher.db:access-totals id)
+                    :referrers (link-smasher.db:access-counts-by "referrer_host" id)
+                    :countries (link-smasher.db:access-counts-by "country" id)
+                    :retention-days (when (plusp *analytics-retention-days*)
+                                      *analytics-retention-days*)
+                    :recent (booleanize-bot-flag
+                             (link-smasher.db:find-accesses id :limit 50)))))))
+
 (easy-routes:defroute delete-url
     ("/list/delete" :method :post :decorators (@limit-body @require-admin)) ()
     (let ((short (hunchentoot:parameter "short_code")))
@@ -269,9 +355,22 @@ browser form POSTs always send Content-Length."
       (hunchentoot:redirect "/list")))
 
 (easy-routes:defroute redirect ("/r/:short") (&path (short 'string))
-                      (let ((long (link-smasher.db:get-original-link short)))
-                        (when long
-                          (link-smasher.db:increment-accesses short))
+                      (let* ((row (first (link-smasher.db:find-by-short-code short)))
+                             (long (getf row :|original_url|)))
+                        (when row
+                          (let ((bot (bot-user-agent-p
+                                      (hunchentoot:header-in* :user-agent))))
+                            ;; Bots get an event but not a count.
+                            (unless bot
+                              (link-smasher.db:increment-accesses short))
+                            (link-smasher.db:record-access
+                             (getf row :|id|)
+                             :referrer-host (referrer-host)
+                             :user-agent (truncated
+                                          (hunchentoot:header-in* :user-agent) 255)
+                             :is-bot (if bot 1 0)
+                             :country (visitor-country))
+                            (maybe-prune-accesses)))
                         (cond
                           ((null long)
                            (setf (hunchentoot:return-code*)
@@ -288,7 +387,8 @@ browser form POSTs always send Content-Length."
 (defun start-server (&key port base-url seconds admin-user admin-password
                        direct-redirect (rate-limit-enabled t)
                        rate-limit-max rate-limit-window max-body
-                       trust-proxy max-threads accept-backlog)
+                       trust-proxy max-threads accept-backlog
+                       analytics-retention-days)
   (flet ((as-int (v default)
            (etypecase v
              (null default)
@@ -310,6 +410,7 @@ browser form POSTs always send Content-Length."
       (setf *rate-limit-window* (as-int rate-limit-window 60))
       (setf *max-body-bytes* (as-int max-body 8192))
       (setf *trust-proxy* trust-proxy)
+      (setf *analytics-retention-days* (max 0 (as-int analytics-retention-days 90)))
 
       (format t "~&Starting the web server on port ~a~&" port)
       (force-output)

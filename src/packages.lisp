@@ -36,5 +36,10 @@
    #:find-by-original-url
    #:create-link
    #:increment-accesses
+   #:record-access
+   #:find-accesses
+   #:access-totals
+   #:access-counts-by
+   #:prune-accesses
    #:delete-by-short-code
    #:get-original-link))

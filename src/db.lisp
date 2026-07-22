@@ -25,8 +25,26 @@
                             "SELECT name FROM sqlite_master WHERE type='table' AND name='links'")
                nil)))))
 
+(defun ensure-accesses-table ()
+  (dbi:do-sql *connection*
+    "
+CREATE TABLE IF NOT EXISTS link_accesses (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  link_id INTEGER NOT NULL,
+  accessed_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  referrer_host TEXT,
+  user_agent TEXT,
+  is_bot INTEGER NOT NULL DEFAULT 0,
+  country TEXT
+)
+")
+  (dbi:do-sql *connection*
+    "CREATE INDEX IF NOT EXISTS idx_link_accesses_link
+     ON link_accesses (link_id, accessed_at DESC)"))
+
 (defun reset-schema ()
   (dbi:do-sql *connection* "DROP TABLE IF EXISTS links")
+  (dbi:do-sql *connection* "DROP TABLE IF EXISTS link_accesses")
   (dbi:do-sql *connection*
     "
 CREATE TABLE links (
@@ -37,7 +55,8 @@ CREATE TABLE links (
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   accesses INTEGER NOT NULL DEFAULT 0
 )
-"))
+")
+  (ensure-accesses-table))
 
 (defun column-exists-p (table column)
   (some (lambda (row) (string= (getf row :|name|) column))
@@ -51,7 +70,8 @@ CREATE TABLE links (
   "Bring an existing table up to the current schema. Idempotent."
   (unless (column-exists-p "links" "accesses")
     (dbi:do-sql *connection*
-      "ALTER TABLE links ADD COLUMN accesses INTEGER NOT NULL DEFAULT 0")))
+      "ALTER TABLE links ADD COLUMN accesses INTEGER NOT NULL DEFAULT 0"))
+  (ensure-accesses-table))
 
 (defun ensure-schema ()
   (if (schema-exists-p)
@@ -82,9 +102,6 @@ CREATE TABLE links (
     (list url))))
 
 (defun find-all-links (&key sort-by-accesses)
-  "Most recent first by default; by access count (descending) when
-SORT-BY-ACCESSES. The ORDER BY clause is picked from fixed literals, never
-built from user input."
   (dbi:fetch-all
    (dbi:execute
     (dbi:prepare *connection*
@@ -117,7 +134,59 @@ enumerable."
     "UPDATE links SET accesses = accesses + 1 WHERE short_code = ?"
     (list code)))
 
+(defun record-access (link-id &key referrer-host user-agent (is-bot 0) country)
+  (dbi:do-sql *connection*
+    "INSERT INTO link_accesses (link_id, referrer_host, user_agent, is_bot, country)
+     VALUES (?, ?, ?, ?, ?)"
+    (list link-id referrer-host user-agent is-bot country)))
+
+(defun find-accesses (link-id &key (limit 100))
+  (dbi:fetch-all
+   (dbi:execute
+    (dbi:prepare *connection*
+                 "SELECT * FROM link_accesses WHERE link_id = ?
+                  ORDER BY accessed_at DESC, id DESC LIMIT ?")
+    (list link-id limit))))
+
+(defun access-totals (link-id)
+  (first
+   (dbi:fetch-all
+    (dbi:execute
+     (dbi:prepare *connection*
+                  "SELECT COUNT(*) AS total,
+                          COALESCE(SUM(is_bot), 0) AS bots
+                   FROM link_accesses WHERE link_id = ?")
+     (list link-id)))))
+
+(defun access-counts-by (column link-id &key (limit 20))
+  "COLUMN is matched against fixed literals, never interpolated from user input."
+  (multiple-value-bind (col unknown-label)
+      (cond ((string= column "referrer_host") (values "referrer_host" "(direct)"))
+            ((string= column "country") (values "country" "(unknown)"))
+            (t (error "Unsupported grouping column: ~A" column)))
+    (dbi:fetch-all
+     (dbi:execute
+      (dbi:prepare *connection*
+                   (format nil "SELECT COALESCE(~A, ?) AS label,
+                                       COUNT(*) AS hits
+                                FROM link_accesses WHERE link_id = ?
+                                GROUP BY label ORDER BY hits DESC LIMIT ?" col))
+      (list unknown-label link-id limit)))))
+
+(defun prune-accesses (days)
+  "Delete access events older than DAYS; 0 or less keeps everything."
+  (if (and (integerp days) (plusp days))
+      (dbi:do-sql *connection*
+        "DELETE FROM link_accesses WHERE accessed_at < datetime('now', ?)"
+        (list (format nil "-~D days" days)))
+      0))
+
 (defun delete-by-short-code (code)
+  "Children go first: ON DELETE CASCADE needs the per-connection foreign_keys pragma."
+  (dbi:do-sql *connection*
+    "DELETE FROM link_accesses
+     WHERE link_id IN (SELECT id FROM links WHERE short_code = ?)"
+    (list code))
   (dbi:do-sql *connection*
     "DELETE FROM links WHERE short_code = ?"
     (list code)))

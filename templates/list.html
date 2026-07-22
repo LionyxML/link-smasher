@@ -2,32 +2,64 @@
 
 <h2>Last URLs Smashed</h2>
 
-<p>
-  {% if sort-desc %}
-  <a href="/list">[newest]</a>
-  {% else %}
-  <a href="/list?sort=desc">[sort-desc]</a>
-  {% endif %}
-</p>
+<table class="links">
+  <thead>
+    <tr>
+      <th scope="col" class="num">
+        Accesses<br />
+        <small>
+          {% if sort-desc %}
+          <a href="/list" title="Newest first">[new]</a>
+          <span class="current">[desc]</span>
+          {% else %}
+          <span class="current">[new]</span>
+          <a href="/list?sort=desc" title="Most accessed first">[desc]</a>
+          {% endif %}
+        </small>
+      </th>
+      <th scope="col" class="num">Short</th>
+      <th scope="col">Destination</th>
+      <th scope="col" class="num">Stats</th>
+      <th scope="col" class="num">Delete</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for link in all-links %}
+    <tr>
+      <td class="num">{{ link.accesses }}</td>
+      <td class="num"><a href="/r/{{ link.short_code }}">{{ link.short_code }}</a></td>
+      <td>
+        <a
+          href="{{ link.original_url }}"
+          title="{{ link.original_url }}"
+          rel="noopener noreferrer nofollow"
+        >
+          {{ link.original_url|truncatechars:50 }}
+        </a>
+      </td>
+      <td class="num">
+        <a href="/list/stats/{{ link.short_code }}">stats</a>
+      </td>
+      <td class="num">
+        <form action="/list/delete" method="post">
+          <input type="hidden" name="short_code" value="{{ link.short_code }}" />
+          <button type="submit">delete</button>
+        </form>
+      </td>
+    </tr>
+    {% empty %}
+    <tr>
+      <td colspan="5">No links yet.</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
 
-<ul>
-  {% for link in all-links %}
-  <li>
-    <form action="/list/delete" method="post" style="display: inline">
-      <input type="hidden" name="short_code" value="{{ link.short_code }}" />
-      <button type="submit">[delete]</button>
-    </form>
-    (<a href="/r/{{ link.short_code }}">{{ link.short_code }}</a>)
-    [{{ link.accesses }}]
-    <a
-      href="{{ link.original_url }}"
-      title="{{ link.original_url }}"
-      rel="noopener noreferrer nofollow"
-    >
-      {{ link.original_url|truncatechars:50 }}
-    </a>
-  </li>
-  {% endfor %}
-</ul>
+<p>
+  <small>
+    Sorted by {% if sort-desc %}accesses{% else %}newest first{% endif %}.
+    Bot and link-preview hits are recorded but not counted.
+  </small>
+</p>
 
 {% endblock %}
