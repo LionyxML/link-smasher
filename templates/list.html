@@ -2,6 +2,14 @@
 
 <h2>Last URLs Smashed</h2>
 
+<p>
+  {% if sort-desc %}
+  <a href="/list">[newest]</a>
+  {% else %}
+  <a href="/list?sort=desc">[sort-desc]</a>
+  {% endif %}
+</p>
+
 <ul>
   {% for link in all-links %}
   <li>

@@ -81,11 +81,16 @@ CREATE TABLE links (
                  "SELECT * FROM links WHERE original_url = ?")
     (list url))))
 
-(defun find-all-links ()
+(defun find-all-links (&key sort-by-accesses)
+  "Most recent first by default; by access count (descending) when
+SORT-BY-ACCESSES. The ORDER BY clause is picked from fixed literals, never
+built from user input."
   (dbi:fetch-all
    (dbi:execute
     (dbi:prepare *connection*
-                 "SELECT * FROM links ORDER BY id DESC LIMIT 50"))))
+                 (if sort-by-accesses
+                     "SELECT * FROM links ORDER BY accesses DESC, id DESC LIMIT 50"
+                     "SELECT * FROM links ORDER BY id DESC LIMIT 50")))))
 
 (defun create-link (url &key (max-tries 5))
   "Insert URL with a random, unpredictable short code.

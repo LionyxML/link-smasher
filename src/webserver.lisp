@@ -255,8 +255,10 @@ browser form POSTs always send Content-Length."
                       (render "register.html"))
 
 (easy-routes:defroute list-urls ("/list" :decorators (@require-admin)) ()
-                      (let ((all (link-smasher.db:find-all-links)))
-                        (render "list.html" :all-links all)))
+                      (let* ((sort-desc (string= (or (hunchentoot:parameter "sort") "") "desc"))
+                             (all (link-smasher.db:find-all-links
+                                   :sort-by-accesses sort-desc)))
+                        (render "list.html" :all-links all :sort-desc sort-desc)))
 
 (easy-routes:defroute delete-url
     ("/list/delete" :method :post :decorators (@limit-body @require-admin)) ()
