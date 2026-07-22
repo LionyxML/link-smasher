@@ -1,0 +1,72 @@
+{% extends "layout.html" %} {% block content %}
+
+<h2>Analytics</h2>
+
+<p>
+  <a href="/r/{{ link.short_code }}">{{ link.short_code }}</a>
+  &rarr;
+  <a
+    href="{{ link.original_url }}"
+    title="{{ link.original_url }}"
+    rel="noopener noreferrer nofollow"
+  >
+    {{ link.original_url|truncatechars:50 }}
+  </a>
+</p>
+
+<p>
+  Counted accesses: <strong>{{ link.accesses }}</strong> &mdash; events
+  recorded: {{ totals.total }} ({{ totals.bots }} from bots, not counted)
+</p>
+
+<p>
+  <small>
+    {% if retention-days %}
+    Events below cover the last {{ retention-days }} days; older ones are
+    deleted. The access counter is never pruned.
+    {% else %}
+    Events are kept indefinitely (retention disabled).
+    {% endif %}
+  </small>
+</p>
+
+<h3>Referrers</h3>
+
+<ul>
+  {% for row in referrers %}
+  <li>{{ row.label }} &mdash; {{ row.hits }}</li>
+  {% empty %}
+  <li>No accesses yet.</li>
+  {% endfor %}
+</ul>
+
+<h3>Countries</h3>
+
+<ul>
+  {% for row in countries %}
+  <li>{{ row.label }} &mdash; {{ row.hits }}</li>
+  {% empty %}
+  <li>No accesses yet.</li>
+  {% endfor %}
+</ul>
+
+<h3>Recent accesses</h3>
+
+<ul>
+  {% for a in recent %}
+  <li>
+    {{ a.accessed_at }} &mdash; {{ a.referrer_host|default:"(direct)" }}
+    {% if a.is_bot %}[bot]{% endif %}
+    <br />
+    <small title="{{ a.user_agent }}">
+      {{ a.user_agent|default:"(no user-agent)"|truncatechars:80 }}
+    </small>
+  </li>
+  {% empty %}
+  <li>No accesses yet.</li>
+  {% endfor %}
+</ul>
+
+<p><a href="/list">&larr; Back to list</a></p>
+
+{% endblock %}
