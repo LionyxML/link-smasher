@@ -7,6 +7,24 @@ body {
   width: 80vw;
   background-color: #181a1b;
   color: #e8e6e3;
+  font-family: ui-monospace, Menlo, Consolas, "Liberation Mono", monospace;
+}
+
+main {
+  margin-bottom: 1rem;
+}
+
+input,
+button {
+  font: inherit;
+}
+
+button {
+  padding: 0;
+  background: none;
+  border: none;
+  color: #3491ff;
+  cursor: pointer;
 }
 
 table.links {
@@ -40,4 +58,5 @@ a:visited,
 a:hover,
 a:active {
   color: #3491ff;
+  text-decoration: none;
 }

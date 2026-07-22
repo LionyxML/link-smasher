@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="/css/main.css" />
     {% if secs %}<meta http-equiv="refresh" content="{{ secs }};url={{ long }}" />{% endif %}
 
-    <title>{{ title }}</title>
+    <title>{% block title %}{{ title }}{% endblock %}</title>
 
     {% block head %}
     <meta property="og:site_name" content="{{ title }}" />
@@ -23,8 +23,8 @@
       <h1>{{ title }}</h1>
       <hr />
       <nav>
-        <a href="/">Home</a> - <a href="/register">Register Link</a> -
-        <a href="/list">Links List</a>
+        <a href="/">[home]</a> <a href="/register">[register]</a>
+        <a href="/about">[about]</a> <a href="/list">[admin]</a>
       </nav>
       <hr />
     </header>

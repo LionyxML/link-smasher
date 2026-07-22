@@ -1,0 +1,23 @@
+{% extends "layout.html" %} {% block content %}
+
+<h2>About</h2>
+
+<p>
+  {{ title }} is a small, self-hosted URL shortener written in Common Lisp.
+  Nothing here needs JavaScript: w3m and eww get the same pages a graphical
+  browser gets. The one exception is the copy shortcut on a freshly smashed
+  link, which is added by a script when there is one to run and simply absent
+  otherwise.
+</p>
+
+<p>Running version {{ version }}.</p>
+
+<h3>Source</h3>
+
+<p>
+  <a href="{{ repository }}" rel="noopener noreferrer">[{{ repository }}]</a>
+</p>
+
+<p>Bug reports, patches and questions are welcome there.</p>
+
+{% endblock %}

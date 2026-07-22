@@ -7,8 +7,16 @@
 {% if error %}<p style="color:red;">{{ error }}</p>{% endif %}
 
 <form method="POST" action="/register">
-  <input type="text" name="url" />
-  <button type="submit">Shorten</button>
+  <input
+    type="url"
+    name="url"
+    size="60"
+    maxlength="2000"
+    placeholder="https://example.com/some/long/path"
+    autofocus
+    required
+  />
+  <button type="submit">[shorten]</button>
 </form>
 
 {% endblock %}

@@ -1,12 +1,28 @@
 {% extends "layout.html" %} {% block content %}
 
-<h2>Home</h2>
+<h2>Welcome</h2>
 
 <p>{{ description }}</p>
 
+<p>
+  Paste a long address, get a short one back. No account nor JavaScript
+  required. It works the same in a text browser as in any other.
+</p>
+
+<p>
+  Smashed links are not listed publicly: only the administrator can browse them,
+  see their access counts or remove them. Anyone holding a short link can follow
+  it.
+</p>
+
 <ul>
-  <li><a href="/register">Register a URL</a></li>
-  <li><a href="/list">List Smashed Links</a></li>
+  <li><a href="/register">[register a url]</a> - smash a new link</li>
+  <li>
+    <a href="/about">[about]</a> - what this is and where the source lives
+  </li>
+  <li>
+    <a href="/list">[admin]</a> - manage smashed links, administrator only
+  </li>
 </ul>
 
 {% endblock %}

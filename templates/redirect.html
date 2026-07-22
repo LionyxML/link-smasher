@@ -1,9 +1,11 @@
 {% extends "layout.html" %}
 
+{% block title %}{{ title }} -> {{ long|truncatechars:60 }}{% endblock %}
+
 {% block head %}
 <meta property="og:site_name" content="{{ title }}" />
 <meta property="og:type" content="website" />
-<meta property="og:title" content="{{ title }} → {{ long|truncatechars:60 }}" />
+<meta property="og:title" content="{{ title }} -> {{ long|truncatechars:60 }}" />
 <meta
   property="og:description"
   content="This short link points to {{ long|truncatechars:160 }}"
@@ -21,8 +23,8 @@
 <p>You will be redirected in {{ secs }} seconds.</p>
 
 <p>
-  If it doesn’t happen automatically,
-  <a href="{{ long }}">click here</a>.
+  If it doesn't happen automatically,
+  <a href="{{ long }}">[go now]</a>.
 </p>
 
 {% else %}
@@ -35,7 +37,7 @@
 
 <p>Check the address above, then continue if you trust it.</p>
 
-<p><a href="{{ long }}" rel="noopener noreferrer nofollow">Continue →</a></p>
+<p><a href="{{ long }}" rel="noopener noreferrer nofollow">[continue]</a></p>
 
 {% endif %}
 

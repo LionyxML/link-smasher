@@ -68,7 +68,8 @@ that sets the header; otherwise clients could spoof it to dodge the rate limit."
 
 (defparameter *template-files*
   '("index.html" "register.html" "result.html" "list.html" "stats.html"
-    "redirect.html" "not-found.html" "rate-limited.html")
+    "redirect.html" "not-found.html" "rate-limited.html" "about.html"
+    "unauthorized.html" "error.html")
   "Templates rendered by routes; precompiled at startup. (layout.html is the
 base and gets pulled in when its children compile.)")
 
@@ -98,6 +99,7 @@ first use. Guarded so concurrent first hits compile only once."
    :title (getf link-smasher:*app* :name)
    :description (getf link-smasher:*app* :description)
    :version (getf link-smasher:*app* :version)
+   :repository (getf link-smasher:*app* :repository)
    :base-url *base-url*
    args))
 
@@ -323,6 +325,9 @@ browser form POSTs always send Content-Length."
 (easy-routes:defroute register-page ("/register" :method :get) ()
                       (render "register.html"))
 
+(easy-routes:defroute about-page ("/about") ()
+                      (render "about.html"))
+
 (easy-routes:defroute list-urls ("/list" :decorators (@require-admin)) ()
                       (let* ((sort-desc (string= (or (hunchentoot:parameter "sort") "") "desc"))
                              (all (link-smasher.db:find-all-links
@@ -384,6 +389,20 @@ browser form POSTs always send Content-Length."
                                                    :auto nil)))))
 
 ;;; Server
+(defclass smasher-acceptor (easy-routes:easy-routes-acceptor) ()
+  (:documentation "Routing acceptor that serves our own templates for the
+status pages Hunchentoot would otherwise generate itself (404, 401, ...)."))
+
+(defmethod hunchentoot:acceptor-status-message
+    ((acceptor smasher-acceptor) status-code &key &allow-other-keys)
+  (setf (hunchentoot:content-type*) "text/html; charset=utf-8")
+  (case status-code
+    (404 (render "not-found.html"))
+    (401 (render "unauthorized.html"))
+    (t (render "error.html"
+               :status status-code
+               :reason (hunchentoot:reason-phrase status-code)))))
+
 (defun start-server (&key port base-url seconds admin-user admin-password
                        direct-redirect (rate-limit-enabled t)
                        rate-limit-max rate-limit-window max-body
@@ -426,7 +445,7 @@ browser form POSTs always send Content-Length."
         (compiled-template tpl))
 
       (setf *server*
-            (make-instance 'easy-routes:easy-routes-acceptor
+            (make-instance 'smasher-acceptor
                            :port port
                            :taskmaster
                            (make-instance 'hunchentoot:one-thread-per-connection-taskmaster

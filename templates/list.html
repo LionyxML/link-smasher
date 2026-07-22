@@ -1,6 +1,6 @@
 {% extends "layout.html" %} {% block content %}
 
-<h2>Last URLs Smashed</h2>
+<h2>Admin - Smashed Links</h2>
 
 <table class="links">
   <thead>
@@ -38,12 +38,12 @@
         </a>
       </td>
       <td class="num">
-        <a href="/list/stats/{{ link.short_code }}">stats</a>
+        <a href="/list/stats/{{ link.short_code }}">[stats]</a>
       </td>
       <td class="num">
         <form action="/list/delete" method="post">
           <input type="hidden" name="short_code" value="{{ link.short_code }}" />
-          <button type="submit">delete</button>
+          <button type="submit">[delete]</button>
         </form>
       </td>
     </tr>

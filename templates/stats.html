@@ -4,7 +4,7 @@
 
 <p>
   <a href="/r/{{ link.short_code }}">{{ link.short_code }}</a>
-  &rarr;
+  -&gt;
   <a
     href="{{ link.original_url }}"
     title="{{ link.original_url }}"
@@ -15,7 +15,7 @@
 </p>
 
 <p>
-  Counted accesses: <strong>{{ link.accesses }}</strong> &mdash; events
+  Counted accesses: <strong>{{ link.accesses }}</strong> -- events
   recorded: {{ totals.total }} ({{ totals.bots }} from bots, not counted)
 </p>
 
@@ -34,7 +34,7 @@
 
 <ul>
   {% for row in referrers %}
-  <li>{{ row.label }} &mdash; {{ row.hits }}</li>
+  <li>{{ row.label }} -- {{ row.hits }}</li>
   {% empty %}
   <li>No accesses yet.</li>
   {% endfor %}
@@ -44,7 +44,7 @@
 
 <ul>
   {% for row in countries %}
-  <li>{{ row.label }} &mdash; {{ row.hits }}</li>
+  <li>{{ row.label }} -- {{ row.hits }}</li>
   {% empty %}
   <li>No accesses yet.</li>
   {% endfor %}
@@ -55,7 +55,7 @@
 <ul>
   {% for a in recent %}
   <li>
-    {{ a.accessed_at }} &mdash; {{ a.referrer_host|default:"(direct)" }}
+    {{ a.accessed_at }} -- {{ a.referrer_host|default:"(direct)" }}
     {% if a.is_bot %}[bot]{% endif %}
     <br />
     <small title="{{ a.user_agent }}">
@@ -67,6 +67,6 @@
   {% endfor %}
 </ul>
 
-<p><a href="/list">&larr; Back to list</a></p>
+<p><a href="/list">[back to admin]</a></p>
 
 {% endblock %}

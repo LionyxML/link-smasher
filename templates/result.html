@@ -2,6 +2,43 @@
 
 <h2>Link Smashed Successfully!</h2>
 
-<p>Your smashed link: <a href="{{ short }}">{{ short }}</a></p>
+<p>
+  Your smashed link: <a id="short" href="{{ short }}">{{ short }}</a>
+  <span id="copy-slot"></span>
+</p>
+
+<p><a href="/register">[register another link]</a></p>
+
+<script>
+  (function () {
+    var link = document.getElementById("short");
+    var slot = document.getElementById("copy-slot");
+    var copy = document.createElement("a");
+    copy.href = "#";
+    copy.textContent = "[copy]";
+    copy.addEventListener("click", function (event) {
+      event.preventDefault();
+      var text = link.href;
+      var done = function () {
+        copy.textContent = "[copied]";
+        setTimeout(function () {
+          copy.textContent = "[copy]";
+        }, 2000);
+      };
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(text).then(done);
+      } else {
+        var tmp = document.createElement("textarea");
+        tmp.value = text;
+        document.body.appendChild(tmp);
+        tmp.select();
+        document.execCommand("copy");
+        document.body.removeChild(tmp);
+        done();
+      }
+    });
+    slot.appendChild(copy);
+  })();
+</script>
 
 {% endblock %}

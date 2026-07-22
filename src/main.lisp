@@ -4,7 +4,8 @@
   '(:name        "LinkSmasher"
     :bin-name    "link-smasher"
     :version     "0.1.0"
-    :description "Register long URLs and generate smashed links."))
+    :description "Register long URLs and generate smashed (shorter) links."
+    :repository  "https://github.com/LionyxML/link-smasher"))
 
 (defun option-value (key options)
   (cdr (assoc key options)))
