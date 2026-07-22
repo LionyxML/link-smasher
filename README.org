@@ -9,9 +9,15 @@ The project is built to be safe to expose publicly: short codes are
 random and non-enumerable, the admin listing is behind auth, submitted
 URLs are validated, and the write endpoint is rate limited.
 
-** Screenshot
+** Screenshots
 
-[[file:docs/screenshot.png]]
+[[https://github.com/LionyxML/link-smasher/blob/demos/doc-01.png?raw=true]]
+
+[[https://github.com/LionyxML/link-smasher/blob/demos/doc-02.png?raw=true]]
+
+[[https://github.com/LionyxML/link-smasher/blob/demos/doc-03.png?raw=true]]
+
+[[https://github.com/LionyxML/link-smasher/blob/demos/doc-04.png?raw=true]]
 
 ** Features
 
