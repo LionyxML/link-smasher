@@ -87,6 +87,7 @@ first use. Guarded so concurrent first hits compile only once."
    :title (getf link-smasher:*app* :name)
    :description (getf link-smasher:*app* :description)
    :version (getf link-smasher:*app* :version)
+   :base-url *base-url*
    args))
 
 (defun parse-ipv4-octets (host)
@@ -277,9 +278,11 @@ browser form POSTs always send Content-Length."
                                  hunchentoot:+http-not-found+)
                            (render "not-found.html"))
                           (*direct-redirect*
-                           (render "redirect.html" :long long :secs *seconds* :auto t))
+                           (render "redirect.html" :long long :short short
+                                                   :secs *seconds* :auto t))
                           (t
-                           (render "redirect.html" :long long :auto nil)))))
+                           (render "redirect.html" :long long :short short
+                                                   :auto nil)))))
 
 ;;; Server
 (defun start-server (&key port base-url seconds admin-user admin-password

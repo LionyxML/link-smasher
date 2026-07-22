@@ -8,6 +8,14 @@
     {% if secs %}<meta http-equiv="refresh" content="{{ secs }};url={{ long }}" />{% endif %}
 
     <title>{{ title }}</title>
+
+    {% block head %}
+    <meta property="og:site_name" content="{{ title }}" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="{{ title }}" />
+    <meta property="og:description" content="{{ description }}" />
+    <meta name="twitter:card" content="summary" />
+    {% endblock %}
   </head>
 
   <body class="container">

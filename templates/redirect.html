@@ -1,4 +1,18 @@
-{% extends "layout.html" %} {% block content %}
+{% extends "layout.html" %}
+
+{% block head %}
+<meta property="og:site_name" content="{{ title }}" />
+<meta property="og:type" content="website" />
+<meta property="og:title" content="{{ title }} → {{ long|truncatechars:60 }}" />
+<meta
+  property="og:description"
+  content="This short link points to {{ long|truncatechars:160 }}"
+/>
+<meta property="og:url" content="{{ base-url }}r/{{ short }}" />
+<meta name="twitter:card" content="summary" />
+{% endblock %}
+
+{% block content %}
 
 {% if auto %}
 
