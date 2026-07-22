@@ -56,16 +56,46 @@ Docker) with Compose. Nothing else is installed on the host.
 
 ** Quick start
 
-Fastest path, plain HTTP on port 3800:
+*** With containers (nothing but Podman or Docker on the host)
+
+#+BEGIN_SRC sh
+  git clone https://github.com/LionyxML/link-smasher.git
+  cd link-smasher
+  cp .env.example .env
+#+END_SRC
+
+Edit =.env= and set =ADMIN_PASSWORD= to something of your own. That is the
+only variable you must touch for a local run: the dev overlay forces
+=DOMAIN=localhost=. Then bring the stack up:
+
+#+BEGIN_SRC sh
+  podman compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+#+END_SRC
+
+Open =https://localhost:8443/=, go to *[register]*, and paste a URL. The
+certificate comes from Caddy's internal CA, so the browser warns once;
+accept it. Use =docker compose= instead of =podman compose= if that is
+what you have.
+
+To stop it, keeping the database and certs:
+
+#+BEGIN_SRC sh
+  podman compose -f docker-compose.yml -f docker-compose.dev.yml down
+#+END_SRC
+
+For a real domain with Let's Encrypt certs, see *Running with HTTPS
+(Podman / Docker + Caddy)* below.
+
+*** From source (plain HTTP, port 3800)
+
+Needs SBCL and Quicklisp on the host:
 
 #+BEGIN_SRC sh
   make run
 #+END_SRC
 
-Then open =http://localhost:3800/=, go to *Register Link*, and paste a
-URL.
-
-For an HTTPS deployment, jump to [[*Running with HTTPS (Podman / Docker + Caddy)][Running with HTTPS]].
+Then open =http://localhost:3800/=. Note that =/list= stays closed until
+=ADMIN_PASSWORD= is set in the environment.
 
 ** Load in a REPL
 
@@ -74,8 +104,9 @@ For an HTTPS deployment, jump to [[*Running with HTTPS (Podman / Docker + Caddy)
 Automatically installs all dependencies and loads the project.
 
 #+BEGIN_SRC lisp
-  (load "~/quicklisp/setup.lisp") (pushnew (uiop:getcwd)
-  ql:*local-project-directories*) (ql:quickload :link-smasher)
+  (load "~/quicklisp/setup.lisp")
+  (pushnew (uiop:getcwd) ql:*local-project-directories*)
+  (ql:quickload :link-smasher)
 #+END_SRC
 
 *** The ASDF way
@@ -83,8 +114,8 @@ Automatically installs all dependencies and loads the project.
 Load the project assuming all dependencies are already installed.
 
 #+BEGIN_SRC lisp
-  (pushnew (uiop:getcwd) asdf:*central-registry*) (asdf:load-system
-  :link-smasher)
+  (pushnew (uiop:getcwd) asdf:*central-registry*)
+  (asdf:load-system :link-smasher)
 #+END_SRC
 
 ** Building
@@ -104,7 +135,8 @@ image does).
 ** Running locally (plain HTTP, via make)
 
 The quickest way to run the app directly, without a proxy or TLS. Good
-for hacking on it. For HTTPS, see [[*Running with HTTPS (Podman / Docker + Caddy)][Running with HTTPS]] below.
+for hacking on it. For HTTPS, see *Running with HTTPS (Podman / Docker
++ Caddy)* below.
 
 *** From source (development)
 
@@ -123,15 +155,13 @@ Requires Quicklisp.
 *** Directly
 
 #+BEGIN_SRC sh
-  ./link-smasher --port 3800 --db db.sqlite3 --base
-  http://localhost:3800/ --seconds 3
+  ./link-smasher --port 3800 --db db.sqlite3 --base http://localhost:3800/ --seconds 3
 #+END_SRC
 
 Or via environment variables:
 
 #+BEGIN_SRC sh
-  PORT=3800 DB=db.sqlite3 BASE_URL=http://localhost:3800/ SECONDS=3
-  ./link-smasher
+  PORT=3800 DB=db.sqlite3 BASE_URL=http://localhost:3800/ SECONDS=3 ./link-smasher
 #+END_SRC
 
 ** Running with HTTPS (Podman / Docker + Caddy)
@@ -164,8 +194,7 @@ to get a real Let's Encrypt cert. You do not even need to edit =DOMAIN=
 in =.env= for dev; just make sure =ADMIN_PASSWORD= is set.
 
 #+BEGIN_SRC sh
-  podman compose -f docker-compose.yml -f docker-compose.dev.yml up -d
-  --build
+  podman compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
 #+END_SRC
 
 Then open =https://localhost:8443/=. Caddy's internal-CA cert makes the
@@ -208,16 +237,17 @@ These variables come from =.env= (see =.env.example=):
 | =ANALYTICS_RETENTION_DAYS= | no          | Delete =/list= analytics events older than N days (default 90, =0= = forever) |
 
 The compose file also sets =TRUST_PROXY=1= for the app so per-IP rate
-limiting keeps working behind Caddy (see [[*Rate limiting and body
-limits][Rate limiting and body limits]]).
+limiting keeps working behind Caddy (see *Rate limiting and body
+limits* below).
 
 *** Everyday commands
 
 #+BEGIN_SRC sh
-  podman compose ps # what's running podman compose logs -f caddy #
-  watch cert issuance / proxy logs podman compose up -d --build #
-  rebuild after code changes podman compose down # stop (keeps db +
-  certs in volumes) podman compose down -v # stop AND wipe db + certs
+  podman compose ps              # what's running
+  podman compose logs -f caddy   # watch cert issuance / proxy logs
+  podman compose up -d --build   # rebuild after code changes
+  podman compose down            # stop (keeps db + certs in volumes)
+  podman compose down -v         # stop AND wipe db + certs
 #+END_SRC
 
 For the dev overlay, repeat the =-f docker-compose.yml -f
@@ -283,11 +313,13 @@ default*; disable it with =--no-rate-limit= or =RATE_LIMIT=off=.
 ** Usage
 
 1. Open the app in your browser (=http://localhost:3800/= locally).
-2. Go to *Register Link* and paste a URL.
-3. Copy the short link from the result page.
+2. Go to *[register]* and paste a URL.
+3. Copy the short link from the result page. With JavaScript enabled a
+   =[copy]= shortcut appears next to it; without it, select and copy.
 4. Share it. Visitors see a click-through page showing the
    destination, then continue.
-5. View all registered links at =/list= (admin only, see below).
+5. View all registered links under *[admin]* (=/list=, admin only, see
+   below).
 
 ** Redirect behavior and URL safety
 
@@ -352,8 +384,9 @@ before starting:
 
 *Security note:* Basic Auth sends the credentials base64-encoded, *not*
 encrypted. Only expose this over *HTTPS*, for example behind a
-TLS-terminating reverse proxy such as Caddy (see [[*Running with HTTPS (Podman / Docker + Caddy)][Running with
-HTTPS]]). Over plain HTTP the admin password travels in the clear.
+TLS-terminating reverse proxy such as Caddy (see *Running with HTTPS
+(Podman / Docker + Caddy)* above). Over plain HTTP the admin password
+travels in the clear.
 
 ** License
 
