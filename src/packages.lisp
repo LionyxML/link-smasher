@@ -35,5 +35,6 @@
    #:find-by-short-code
    #:find-by-original-url
    #:create-link
+   #:increment-accesses
    #:delete-by-short-code
    #:get-original-link))

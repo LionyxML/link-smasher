@@ -107,6 +107,11 @@ enumerable."
         (error "Could not generate a unique short code after ~A tries"
                max-tries)))
 
+(defun increment-accesses (code)
+  (dbi:do-sql *connection*
+    "UPDATE links SET accesses = accesses + 1 WHERE short_code = ?"
+    (list code)))
+
 (defun delete-by-short-code (code)
   (dbi:do-sql *connection*
     "DELETE FROM links WHERE short_code = ?"

@@ -267,6 +267,8 @@ browser form POSTs always send Content-Length."
 
 (easy-routes:defroute redirect ("/r/:short") (&path (short 'string))
                       (let ((long (link-smasher.db:get-original-link short)))
+                        (when long
+                          (link-smasher.db:increment-accesses short))
                         (cond
                           ((null long)
                            (setf (hunchentoot:return-code*)
