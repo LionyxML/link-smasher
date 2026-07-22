@@ -5,12 +5,18 @@
 <ul>
   {% for link in all-links %}
   <li>
-    <a href="/r/{{ link.short_code }}"> {{ link.original_url }} </a>
-    ({{ link.short_code }})
     <form action="/list/delete" method="post" style="display: inline">
       <input type="hidden" name="short_code" value="{{ link.short_code }}" />
       <button type="submit">[delete]</button>
     </form>
+    (<a href="/r/{{ link.short_code }}">{{ link.short_code }}</a>)
+    <a
+      href="{{ link.original_url }}"
+      title="{{ link.original_url }}"
+      rel="noopener noreferrer nofollow"
+    >
+      {{ link.original_url|truncatechars:50 }}
+    </a>
   </li>
   {% endfor %}
 </ul>
