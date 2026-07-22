@@ -34,13 +34,29 @@ CREATE TABLE links (
   original_url TEXT NOT NULL,
   short_code TEXT UNIQUE,
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  accesses INTEGER NOT NULL DEFAULT 0
 )
 "))
 
+(defun column-exists-p (table column)
+  (some (lambda (row) (string= (getf row :|name|) column))
+        (dbi:fetch-all
+         (dbi:execute
+          (dbi:prepare *connection*
+                       (format nil "PRAGMA table_info(~A)" table))
+          nil))))
+
+(defun migrate-schema ()
+  "Bring an existing table up to the current schema. Idempotent."
+  (unless (column-exists-p "links" "accesses")
+    (dbi:do-sql *connection*
+      "ALTER TABLE links ADD COLUMN accesses INTEGER NOT NULL DEFAULT 0")))
+
 (defun ensure-schema ()
-  (unless (schema-exists-p)
-    (reset-schema)))
+  (if (schema-exists-p)
+      (migrate-schema)
+      (reset-schema)))
 
 
 ;;; Helpers

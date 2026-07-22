@@ -29,6 +29,7 @@
    #:disconnect
    #:reset-schema
    #:ensure-schema
+   #:migrate-schema
    #:find-all-links
    #:find-by-id
    #:find-by-short-code
