@@ -258,6 +258,13 @@ browser form POSTs always send Content-Length."
                       (let ((all (link-smasher.db:find-all-links)))
                         (render "list.html" :all-links all)))
 
+(easy-routes:defroute delete-url
+    ("/list/delete" :method :post :decorators (@limit-body @require-admin)) ()
+    (let ((short (hunchentoot:parameter "short_code")))
+      (when short
+        (link-smasher.db:delete-by-short-code short))
+      (hunchentoot:redirect "/list")))
+
 (easy-routes:defroute redirect ("/r/:short") (&path (short 'string))
                       (let ((long (link-smasher.db:get-original-link short)))
                         (cond

@@ -7,6 +7,10 @@
   <li>
     <a href="/r/{{ link.short_code }}"> {{ link.original_url }} </a>
     ({{ link.short_code }})
+    <form action="/list/delete" method="post" style="display: inline">
+      <input type="hidden" name="short_code" value="{{ link.short_code }}" />
+      <button type="submit">[delete]</button>
+    </form>
   </li>
   {% endfor %}
 </ul>

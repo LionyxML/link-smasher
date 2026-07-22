@@ -91,6 +91,11 @@ enumerable."
         (error "Could not generate a unique short code after ~A tries"
                max-tries)))
 
+(defun delete-by-short-code (code)
+  (dbi:do-sql *connection*
+    "DELETE FROM links WHERE short_code = ?"
+    (list code)))
+
 (defun get-original-link (short)
   (getf (first (find-by-short-code short))
         :|original_url|))

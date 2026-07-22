@@ -34,4 +34,5 @@
    #:find-by-short-code
    #:find-by-original-url
    #:create-link
+   #:delete-by-short-code
    #:get-original-link))
