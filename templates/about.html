@@ -10,7 +10,16 @@
   otherwise.
 </p>
 
-<p>Running version {{ version }}.</p>
+<h3>Command line</h3>
+
+<p>
+  Add <code>raw</code> to the register POST and the response is the shortened
+  link as plain text. Handy from the shell:
+</p>
+
+<pre><code>curl -sX POST -d url=https://example.com '{{ base-url }}register?raw'</code></pre>
+
+<p>An unusable URL answers with a 400 and a plain-text reason.</p>
 
 <h3>Source</h3>
 

@@ -314,13 +314,25 @@ browser form POSTs always send Content-Length."
 
 (easy-routes:defroute register-submit
     ("/register" :method :post :decorators (@limit-body @rate-limit)) ()
-    (let ((url (hunchentoot:parameter "url")))
-      (if (safe-redirect-url-p url)
-          (let ((short (format nil "~Ar/~A" *base-url*
-                               (link-smasher.db:create-link url))))
-            (render "result.html" :short short))
-          (render "register.html"
-                  :error "URL is not allowed. Must be a public http:// or https:// address."))))
+    (let ((url (hunchentoot:parameter "url"))
+          (raw (hunchentoot:parameter "raw")))
+      (cond
+        ((not (safe-redirect-url-p url))
+         (if raw
+             (progn
+               (setf (hunchentoot:return-code*) 400
+                     (hunchentoot:content-type*) "text/plain")
+               "URL is not allowed. Must be a public http:// or https:// address.")
+             (render "register.html"
+                     :error "URL is not allowed. Must be a public http:// or https:// address.")))
+        (t
+         (let ((short (format nil "~Ar/~A" *base-url*
+                              (link-smasher.db:create-link url))))
+           (if raw
+               (progn
+                 (setf (hunchentoot:content-type*) "text/plain")
+                 short)
+               (render "result.html" :short short)))))))
 
 (easy-routes:defroute register-page ("/register" :method :get) ()
                       (render "register.html"))

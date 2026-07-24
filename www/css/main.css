@@ -52,6 +52,14 @@ table.links .current {
   color: #9a9a9a;
 }
 
+pre {
+  background-color: #23272a;
+  border: 1px solid #3a3d3f;
+  border-radius: 4px;
+  padding: 0.6rem 0.8rem;
+  overflow-x: auto;
+}
+
 a,
 a:link,
 a:visited,
