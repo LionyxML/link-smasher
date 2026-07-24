@@ -31,6 +31,7 @@
    #:ensure-schema
    #:migrate-schema
    #:find-all-links
+   #:count-links
    #:find-by-id
    #:find-by-short-code
    #:find-by-original-url

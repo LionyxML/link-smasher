@@ -1,6 +1,6 @@
 {% extends "layout.html" %} {% block content %}
 
-<h2>Admin - Smashed Links</h2>
+<h2>Admin - Smashed Links {% if total %}<small>({{ total }} links)</small>{% endif %}</h2>
 
 <table class="links">
   <thead>
@@ -27,7 +27,9 @@
     {% for link in all-links %}
     <tr>
       <td class="num">{{ link.accesses }}</td>
-      <td class="num"><a href="/r/{{ link.short_code }}">{{ link.short_code }}</a></td>
+      <td class="num">
+        <a href="/r/{{ link.short_code }}">{{ link.short_code }}</a>
+      </td>
       <td>
         <a
           href="{{ link.original_url }}"
@@ -42,7 +44,11 @@
       </td>
       <td class="num">
         <form action="/list/delete" method="post">
-          <input type="hidden" name="short_code" value="{{ link.short_code }}" />
+          <input
+            type="hidden"
+            name="short_code"
+            value="{{ link.short_code }}"
+          />
           <button type="submit">[delete]</button>
         </form>
       </td>
@@ -55,10 +61,26 @@
   </tbody>
 </table>
 
+<p class="pagination">
+  <small>
+    {% if total %} Showing {{ from }}&ndash;{{ to }} of {{ total }} {% else %}
+    No links yet {% endif %} {% if pages > 1 %} &middot; page {{ page }} of {{
+    pages }} &middot; {% if prev-page %}
+    <a href="/list?page={{ prev-page }}{% if sort-desc %}&sort=desc{% endif %}"
+      >[prev]</a
+    >
+    {% else %}<span class="current">[prev]</span>{% endif %} {% if next-page %}
+    <a href="/list?page={{ next-page }}{% if sort-desc %}&sort=desc{% endif %}"
+      >[next]</a
+    >
+    {% else %}<span class="current">[next]</span>{% endif %} {% endif %}
+  </small>
+</p>
+
 <p>
   <small>
-    Sorted by {% if sort-desc %}accesses{% else %}newest first{% endif %}.
-    Bot and link-preview hits are recorded but not counted.
+    Sorted by {% if sort-desc %}accesses{% else %}newest first{% endif %}. Bot
+    and link-preview hits are recorded but not counted.
   </small>
 </p>
 

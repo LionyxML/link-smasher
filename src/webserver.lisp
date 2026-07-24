@@ -193,7 +193,7 @@ thread. Errors are swallowed so a failed sweep never breaks the request."
           (when (> (- now *last-prune*) *prune-interval*)
             (setf *last-prune* now)
             (ignore-errors
-             (link-smasher.db:prune-accesses *analytics-retention-days*))))))))
+              (link-smasher.db:prune-accesses *analytics-retention-days*))))))))
 
 (defun visitor-country ()
   "Country from CF-IPCountry, only when *trust-proxy* is set — without a proxy
@@ -328,11 +328,30 @@ browser form POSTs always send Content-Length."
 (easy-routes:defroute about-page ("/about") ()
                       (render "about.html"))
 
+(defvar *list-page-size* 50
+  "Number of links shown per page on /list.")
+
 (easy-routes:defroute list-urls ("/list" :decorators (@require-admin)) ()
                       (let* ((sort-desc (string= (or (hunchentoot:parameter "sort") "") "desc"))
+                             (total (link-smasher.db:count-links))
+                             (size *list-page-size*)
+                             (pages (max 1 (ceiling total size)))
+                             (page (min pages (max 1 (or (parse-integer
+                                                          (or (hunchentoot:parameter "page") "1")
+                                                          :junk-allowed t)
+                                                         1))))
+                             (offset (* (1- page) size))
                              (all (link-smasher.db:find-all-links
-                                   :sort-by-accesses sort-desc)))
-                        (render "list.html" :all-links all :sort-desc sort-desc)))
+                                   :sort-by-accesses sort-desc
+                                   :limit size :offset offset))
+                             (shown (length all)))
+                        (render "list.html"
+                                :all-links all :sort-desc sort-desc
+                                :total total :page page :pages pages
+                                :from (if (zerop shown) 0 (1+ offset))
+                                :to (+ offset shown)
+                                :prev-page (when (> page 1) (1- page))
+                                :next-page (when (< page pages) (1+ page)))))
 
 (easy-routes:defroute link-stats
     ("/list/stats/:short" :decorators (@require-admin)) (&path (short 'string))
@@ -383,10 +402,10 @@ browser form POSTs always send Content-Length."
                            (render "not-found.html"))
                           (*direct-redirect*
                            (render "redirect.html" :long long :short short
-                                                   :secs *seconds* :auto t))
+                                   :secs *seconds* :auto t))
                           (t
                            (render "redirect.html" :long long :short short
-                                                   :auto nil)))))
+                                   :auto nil)))))
 
 ;;; Server
 (defclass smasher-acceptor (easy-routes:easy-routes-acceptor) ()
@@ -407,7 +426,7 @@ status pages Hunchentoot would otherwise generate itself (404, 401, ...)."))
                        direct-redirect (rate-limit-enabled t)
                        rate-limit-max rate-limit-window max-body
                        trust-proxy max-threads accept-backlog
-                       analytics-retention-days)
+                       analytics-retention-days list-page-size)
   (flet ((as-int (v default)
            (etypecase v
              (null default)
@@ -430,6 +449,7 @@ status pages Hunchentoot would otherwise generate itself (404, 401, ...)."))
       (setf *max-body-bytes* (as-int max-body 8192))
       (setf *trust-proxy* trust-proxy)
       (setf *analytics-retention-days* (max 0 (as-int analytics-retention-days 90)))
+      (setf *list-page-size* (max 1 (as-int list-page-size 50)))
 
       (format t "~&Starting the web server on port ~a~&" port)
       (force-output)

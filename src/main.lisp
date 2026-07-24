@@ -1,11 +1,11 @@
 (in-package #:link-smasher)
 
 (defparameter *app*
-  '(:name        "LinkSmasher"
-    :bin-name    "link-smasher"
-    :version     "0.1.0"
-    :description "Register long URLs and generate smashed (shorter) links."
-    :repository  "https://github.com/LionyxML/link-smasher"))
+  (list :name        "LinkSmasher"
+        :bin-name    "link-smasher"
+        :version     (asdf:component-version (asdf:find-system :link-smasher))
+        :description "Register long URLs and generate smashed (shorter) links."
+        :repository  "https://github.com/LionyxML/link-smasher"))
 
 (defun option-value (key options)
   (cdr (assoc key options)))
@@ -107,9 +107,12 @@ Used for opt-out of behaviour that is on by default."
                                        (uiop:getenv "ACCEPT_BACKLOG")
                                        200))
                    (analytics-retention-days
-                     (or (option-value :analytics-retention-days data)
-                         (uiop:getenv "ANALYTICS_RETENTION_DAYS")
-                         90)))
+                    (or (option-value :analytics-retention-days data)
+                        (uiop:getenv "ANALYTICS_RETENTION_DAYS")
+                        90))
+                   (list-page-size (or (option-value :list-page-size data)
+                                       (uiop:getenv "LIST_PAGE_SIZE")
+                                       50)))
 
                (print-banner port db base-url)
 
@@ -140,7 +143,8 @@ Used for opt-out of behaviour that is on by default."
                 :trust-proxy trust-proxy
                 :max-threads max-threads
                 :accept-backlog accept-backlog
-                :analytics-retention-days analytics-retention-days)
+                :analytics-retention-days analytics-retention-days
+                :list-page-size list-page-size)
 
                ;; Block main thread until signal received
                (let ((shutdown (sb-thread:make-semaphore :name "shutdown")))

@@ -2,7 +2,7 @@
     :description "A link (URL) shortner / redicretor"
     :author "Rahul Martim Juliato"
     :license "MIT"
-    :version "0.1.0"
+    :version "0.1.1"
     :depends-on (#:hunchentoot #:easy-routes #:djula #:cl-dbi #:dbd-sqlite3 #:quri)
     :entry-point "link-smasher:main"
     :components

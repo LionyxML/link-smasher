@@ -101,13 +101,21 @@ CREATE TABLE links (
                  "SELECT * FROM links WHERE original_url = ?")
     (list url))))
 
-(defun find-all-links (&key sort-by-accesses)
+(defun count-links ()
+  (getf (first
+         (dbi:fetch-all
+          (dbi:execute
+           (dbi:prepare *connection* "SELECT COUNT(*) AS total FROM links"))))
+        :|total| 0))
+
+(defun find-all-links (&key sort-by-accesses (limit 50) (offset 0))
   (dbi:fetch-all
    (dbi:execute
     (dbi:prepare *connection*
                  (if sort-by-accesses
-                     "SELECT * FROM links ORDER BY accesses DESC, id DESC LIMIT 50"
-                     "SELECT * FROM links ORDER BY id DESC LIMIT 50")))))
+                     "SELECT * FROM links ORDER BY accesses DESC, id DESC LIMIT ? OFFSET ?"
+                     "SELECT * FROM links ORDER BY id DESC LIMIT ? OFFSET ?"))
+    (list limit offset))))
 
 (defun create-link (url &key (max-tries 5))
   "Insert URL with a random, unpredictable short code.

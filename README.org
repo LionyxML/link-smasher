@@ -235,6 +235,7 @@ These variables come from =.env= (see =.env.example=):
 | =RATE_LIMIT_WINDOW=        | no          | Window length in seconds (default 60)                                     |
 | =MAX_BODY=                 | no          | Max request body size in bytes (default 8192)                             |
 | =ANALYTICS_RETENTION_DAYS= | no          | Delete =/list= analytics events older than N days (default 90, =0= = forever) |
+| =LIST_PAGE_SIZE=           | no          | Links shown per page on =/list= (default 50)                                |
 
 The compose file also sets =TRUST_PROXY=1= for the app so per-IP rate
 limiting keeps working behind Caddy (see *Rate limiting and body
@@ -291,6 +292,7 @@ default*; disable it with =--no-rate-limit= or =RATE_LIMIT=off=.
 | =--max-body=                 | =MAX_BODY=                 | =8192=                   | Max request body size in bytes; larger returns =413=            |
 | =--trust-proxy=              | =TRUST_PROXY=              | off                    | Take client IP from =X-Forwarded-For= (only behind a proxy)     |
 | =--analytics-retention-days= | =ANALYTICS_RETENTION_DAYS= | =90=                     | Delete =/list= analytics events older than N days (=0= = forever) |
+| =--list-page-size=           | =LIST_PAGE_SIZE=           | =50=                     | Links shown per page on =/list=                                 |
 | =-h=, =--help=                 |                          |                        | Show help                                                     |
 | =-v=, =--version=              |                          |                        | Show version                                                  |
 |                            | =ADMIN_USER=               | =admin=                  | Username for the protected =/list= page (env only)              |

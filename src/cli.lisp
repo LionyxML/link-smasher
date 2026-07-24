@@ -16,6 +16,7 @@
     ("--max-body"                 . :max-body)
     ("--trust-proxy"              . :trust-proxy)
     ("--analytics-retention-days" . :analytics-retention-days)
+    ("--list-page-size"           . :list-page-size)
     ("-h"                         . :help)
     ("--help"                     . :help)
     ("-v"                         . :version)
@@ -63,6 +64,7 @@ Options:
       --analytics-retention-days N
                             Delete /list analytics events older than N days
                             (default: 90). 0 keeps them forever.
+      --list-page-size N    Links shown per page on /list (default: 50).
   -v, --version             Show version
 
 Environment (env-only):
@@ -79,6 +81,7 @@ Environment (switch alternatives):
   TRUST_PROXY       Same as --trust-proxy when set to 1/true/yes/on.
   ANALYTICS_RETENTION_DAYS
                     Same as --analytics-retention-days.
+  LIST_PAGE_SIZE    Same as --list-page-size.
 
 "
           (app-prop :name)
@@ -107,7 +110,7 @@ Environment (switch alternatives):
 
                ((:port :db :base-url :seconds
                        :rate-limit-max :rate-limit-window :max-body
-                       :analytics-retention-days)
+                       :analytics-retention-days :list-page-size)
                 (if args
                     (push (cons option (pop args)) result)
                     (return-from parse-args
