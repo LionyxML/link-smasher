@@ -62,14 +62,14 @@ Options:
       --trust-proxy         Read client IP from X-Forwarded-For. Enable ONLY
                             behind a trusted reverse proxy (e.g. Caddy/nginx).
       --analytics-retention-days N
-                            Delete /list analytics events older than N days
+                            Delete /admin analytics events older than N days
                             (default: 90). 0 keeps them forever.
-      --list-page-size N    Links shown per page on /list (default: 50).
+      --list-page-size N    Links shown per page on /admin (default: 50).
   -v, --version             Show version
 
 Environment (env-only):
-  ADMIN_USER        Username for the protected /list page (default: admin)
-  ADMIN_PASSWORD    Password for /list. If unset, /list stays closed (401).
+  ADMIN_USER        Username for the protected /admin page (default: admin)
+  ADMIN_PASSWORD    Password for /admin. If unset, /admin stays closed (401).
                     Basic Auth is unencrypted; serve it only behind HTTPS.
 
 Environment (switch alternatives):

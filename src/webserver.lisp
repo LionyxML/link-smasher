@@ -67,7 +67,7 @@ that sets the header; otherwise clients could spoof it to dodge the rate limit."
    "templates/"))
 
 (defparameter *template-files*
-  '("index.html" "register.html" "result.html" "list.html" "stats.html"
+  '("index.html" "register.html" "result.html" "admin.html" "stats.html"
     "redirect.html" "not-found.html" "rate-limited.html" "about.html"
     "unauthorized.html" "error.html")
   "Templates rendered by routes; precompiled at startup. (layout.html is the
@@ -341,9 +341,9 @@ browser form POSTs always send Content-Length."
                       (render "about.html"))
 
 (defvar *list-page-size* 50
-  "Number of links shown per page on /list.")
+  "Number of links shown per page on /admin.")
 
-(easy-routes:defroute list-urls ("/list" :decorators (@require-admin)) ()
+(easy-routes:defroute list-urls ("/admin" :decorators (@require-admin)) ()
                       (let* ((sort-desc (string= (or (hunchentoot:parameter "sort") "") "desc"))
                              (total (link-smasher.db:count-links))
                              (size *list-page-size*)
@@ -357,7 +357,7 @@ browser form POSTs always send Content-Length."
                                    :sort-by-accesses sort-desc
                                    :limit size :offset offset))
                              (shown (length all)))
-                        (render "list.html"
+                        (render "admin.html"
                                 :all-links all :sort-desc sort-desc
                                 :total total :page page :pages pages
                                 :from (if (zerop shown) 0 (1+ offset))
@@ -366,7 +366,7 @@ browser form POSTs always send Content-Length."
                                 :next-page (when (< page pages) (1+ page)))))
 
 (easy-routes:defroute link-stats
-    ("/list/stats/:short" :decorators (@require-admin)) (&path (short 'string))
+    ("/admin/stats/:short" :decorators (@require-admin)) (&path (short 'string))
     (let ((row (first (link-smasher.db:find-by-short-code short))))
       (if (null row)
           (progn
@@ -384,11 +384,11 @@ browser form POSTs always send Content-Length."
                              (link-smasher.db:find-accesses id :limit 50)))))))
 
 (easy-routes:defroute delete-url
-    ("/list/delete" :method :post :decorators (@limit-body @require-admin)) ()
+    ("/admin/delete" :method :post :decorators (@limit-body @require-admin)) ()
     (let ((short (hunchentoot:parameter "short_code")))
       (when short
         (link-smasher.db:delete-by-short-code short))
-      (hunchentoot:redirect "/list")))
+      (hunchentoot:redirect "/admin")))
 
 (easy-routes:defroute redirect ("/r/:short") (&path (short 'string))
                       (let* ((row (first (link-smasher.db:find-by-short-code short)))

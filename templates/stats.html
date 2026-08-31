@@ -15,18 +15,15 @@
 </p>
 
 <p>
-  Counted accesses: <strong>{{ link.accesses }}</strong> -- events
-  recorded: {{ totals.total }} ({{ totals.bots }} from bots, not counted)
+  Counted accesses: <strong>{{ link.accesses }}</strong> -- events recorded: {{
+  totals.total }} ({{ totals.bots }} from bots, not counted)
 </p>
 
 <p>
   <small>
-    {% if retention-days %}
-    Events below cover the last {{ retention-days }} days; older ones are
-    deleted. The access counter is never pruned.
-    {% else %}
-    Events are kept indefinitely (retention disabled).
-    {% endif %}
+    {% if retention-days %} Events below cover the last {{ retention-days }}
+    days; older ones are deleted. The access counter is never pruned. {% else %}
+    Events are kept indefinitely (retention disabled). {% endif %}
   </small>
 </p>
 
@@ -55,8 +52,8 @@
 <ul>
   {% for a in recent %}
   <li>
-    {{ a.accessed_at }} -- {{ a.referrer_host|default:"(direct)" }}
-    {% if a.is_bot %}[bot]{% endif %}
+    {{ a.accessed_at }} -- {{ a.referrer_host|default:"(direct)" }} {% if
+    a.is_bot %}[bot]{% endif %}
     <br />
     <small title="{{ a.user_agent }}">
       {{ a.user_agent|default:"(no user-agent)"|truncatechars:80 }}
@@ -67,6 +64,6 @@
   {% endfor %}
 </ul>
 
-<p><a href="/list">[back to admin]</a></p>
+<p><a href="/admin">[back to admin]</a></p>
 
 {% endblock %}

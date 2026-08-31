@@ -5,7 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="stylesheet" href="/css/reset.css" />
     <link rel="stylesheet" href="/css/main.css" />
-    {% if secs %}<meta http-equiv="refresh" content="{{ secs }};url={{ long }}" />{% endif %}
+    {% if secs %}
+    <meta http-equiv="refresh" content="{{ secs }};url={{ long }}" />
+    {% endif %}
 
     <title>{% block title %}{{ title }}{% endblock %}</title>
 
@@ -24,7 +26,7 @@
       <hr />
       <nav>
         <a href="/">[home]</a> <a href="/register">[register]</a>
-        <a href="/about">[about]</a> <a href="/list">[admin]</a>
+        <a href="/about">[about]</a> <a href="/admin">[admin]</a>
       </nav>
       <hr />
     </header>

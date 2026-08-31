@@ -1,6 +1,9 @@
 {% extends "layout.html" %} {% block content %}
 
-<h2>Admin - Smashed Links {% if total %}<small>({{ total }} links)</small>{% endif %}</h2>
+<h2>
+  Admin - Smashed Links {% if total %}<small>({{ total }} links)</small>{% endif
+  %}
+</h2>
 
 <table class="links">
   <thead>
@@ -9,11 +12,11 @@
         Accesses<br />
         <small>
           {% if sort-desc %}
-          <a href="/list" title="Newest first">[new]</a>
+          <a href="/admin" title="Newest first">[new]</a>
           <span class="current">[desc]</span>
           {% else %}
           <span class="current">[new]</span>
-          <a href="/list?sort=desc" title="Most accessed first">[desc]</a>
+          <a href="/admin?sort=desc" title="Most accessed first">[desc]</a>
           {% endif %}
         </small>
       </th>
@@ -40,10 +43,10 @@
         </a>
       </td>
       <td class="num">
-        <a href="/list/stats/{{ link.short_code }}">[stats]</a>
+        <a href="/admin/stats/{{ link.short_code }}">[stats]</a>
       </td>
       <td class="num">
-        <form action="/list/delete" method="post">
+        <form action="/admin/delete" method="post">
           <input
             type="hidden"
             name="short_code"
@@ -66,11 +69,11 @@
     {% if total %} Showing {{ from }}&ndash;{{ to }} of {{ total }} {% else %}
     No links yet {% endif %} {% if pages > 1 %} &middot; page {{ page }} of {{
     pages }} &middot; {% if prev-page %}
-    <a href="/list?page={{ prev-page }}{% if sort-desc %}&sort=desc{% endif %}"
+    <a href="/admin?page={{ prev-page }}{% if sort-desc %}&sort=desc{% endif %}"
       >[prev]</a
     >
     {% else %}<span class="current">[prev]</span>{% endif %} {% if next-page %}
-    <a href="/list?page={{ next-page }}{% if sort-desc %}&sort=desc{% endif %}"
+    <a href="/admin?page={{ next-page }}{% if sort-desc %}&sort=desc{% endif %}"
       >[next]</a
     >
     {% else %}<span class="current">[next]</span>{% endif %} {% endif %}
