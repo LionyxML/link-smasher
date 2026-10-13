@@ -10,6 +10,13 @@
 {$DOMAIN} {
 	encode gzip zstd
 
+	# Transport and proxy headers only; content headers come from the app.
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+		-Via
+	}
+
 	# The app trusts both headers (TRUST_PROXY=1), so overwrite whatever the
 	# client sent. Caddy appends to X-Forwarded-For and the app reads the first
 	# entry, so without this anyone can forge their rate-limit bucket.

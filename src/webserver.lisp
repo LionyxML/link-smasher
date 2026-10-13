@@ -424,6 +424,14 @@ browser form POSTs always send Content-Length."
   (:documentation "Routing acceptor that serves our own templates for the
 status pages Hunchentoot would otherwise generate itself (404, 401, ...)."))
 
+(defmethod hunchentoot:acceptor-dispatch-request :before
+    ((acceptor smasher-acceptor) request)
+  "Defaults for every response; handlers may override them."
+  (declare (ignore request))
+  (setf (hunchentoot:header-out :x-content-type-options) "nosniff"
+        (hunchentoot:header-out :referrer-policy) "strict-origin-when-cross-origin"
+        (hunchentoot:header-out :content-security-policy) "frame-ancestors 'none'"))
+
 (defmethod hunchentoot:acceptor-status-message
     ((acceptor smasher-acceptor) status-code &key &allow-other-keys)
   (setf (hunchentoot:content-type*) "text/html; charset=utf-8")
